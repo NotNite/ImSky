@@ -27,7 +27,7 @@ public class FeedService(AtProtoService atProto) {
             this.Posts.Add(new Models.Post(item));
         }
 
-        // If a post was reposted, filter the original entry
+        // If a post was reposted, filter the original entry, so the IDs don't conflict
         foreach (var post in this.Posts.ToList()) {
             foreach (var embed in post.Embeds) {
                 if (embed is PostEmbed postEmbed) {
@@ -40,6 +40,26 @@ public class FeedService(AtProtoService atProto) {
         this.Posts = this.Posts.DistinctBy(p => p.PostId).ToList();
 
         return newCursor;
+    }
+
+    public async Task FetchReplies(Models.Post post) {
+        var result = (await atProto.AtProtocol.Feed.GetPostThreadAsync(post.PostUri)).HandleResult();
+
+        void Process(Models.Post subpost, ThreadView[] replies) {
+            foreach (var reply in replies) {
+                if (reply.Post is null) continue;
+                var replyPost = new Models.Post(reply.Post);
+
+                // Link the reply to the parent post
+                replyPost.ReplyParent = subpost;
+                replyPost.ReplyRoot = subpost.ReplyRoot ?? post;
+
+                if (reply.Replies is not null) Process(replyPost, reply.Replies);
+                subpost.Replies.Add(replyPost);
+            }
+        }
+
+        if (result.Thread.Replies is not null) Process(post, result.Thread.Replies);
     }
 
     public async Task Like(Models.Post post) {

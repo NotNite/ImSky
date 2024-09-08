@@ -1,25 +1,34 @@
 ﻿using System.Numerics;
+using System.Reflection.Metadata.Ecma335;
 using ImGuiNET;
 using ImSky.Api;
 using ImSky.Models;
 using Microsoft.Extensions.Logging;
+using ImageEmbed = ImSky.Models.ImageEmbed;
+using Post = ImSky.Models.Post;
 
 namespace ImSky;
 
 public class Components {
-    public static void Post(Post post, GuiService gui, bool inChild = false) {
+    public static void Post(Post post, GuiService gui, bool inChild = false, string? label = null) {
         var y = ImGui.GetCursorPosY();
 
+        var style = ImGui.GetStyle();
         var lineHeight = ImGui.GetTextLineHeight();
-        var spacing = ImGui.GetStyle().ItemSpacing.Y;
+        var spacing = style.ItemSpacing.Y;
         var size = (lineHeight * 2) + spacing;
 
+        ImGui.BeginGroup();
+
         if (post.RepostedBy is { } repostedBy) {
+            label = repostedBy.DisplayName is null
+                        ? $"Reposted by @{post.RepostedBy.Handle}"
+                        : $"Reposted by {repostedBy.DisplayName} (@{post.RepostedBy.Handle})";
+        }
+
+        if (label is not null) {
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
-            var repostText = repostedBy.DisplayName is null
-                                 ? $"Reposted by @{post.RepostedBy.Handle}"
-                                 : $"Reposted by {repostedBy.DisplayName} (@{post.RepostedBy.Handle})";
-            ImGui.TextUnformatted(repostText);
+            ImGui.TextUnformatted(label);
             ImGui.PopStyleColor();
         }
 
@@ -80,9 +89,19 @@ public class Components {
                 case PostEmbed postEmbed: {
                     if (inChild) break;
 
-                    const ImGuiChildFlags childFlags = ImGuiChildFlags.Border | ImGuiChildFlags.AlwaysAutoResize;
-                    if (ImGui.BeginChild($"postchild_{post.PostId}_{postEmbed.Post.PostId}", Vector2.Zero, childFlags)) {
+                    const ImGuiChildFlags childFlags = ImGuiChildFlags.Border;
+                    var childSize = postEmbed.Post.UiState.ContentHeight is { } contentHeight
+                                        ? cra with {Y = contentHeight + (style.WindowPadding.Y * 2)}
+                                        : Vector2.Zero;
+                    if (ImGui.BeginChild($"postchild_{post.PostId}_{postEmbed.Post.PostId}", childSize, childFlags)) {
+                        var childY = ImGui.GetCursorPosY();
+
                         Post(postEmbed.Post, gui, inChild: true);
+
+                        var childNewY = ImGui.GetCursorPosY();
+                        var childNewHeight = childNewY - childY;
+                        postEmbed.Post.UiState.ContentHeight = childNewHeight;
+
                         ImGui.EndChild();
                     }
 
@@ -91,12 +110,18 @@ public class Components {
             }
         }
 
+        ImGui.EndGroup();
+        if (ImGui.IsItemClicked()) {
+            var view = gui.SetView<Views.PostView>();
+            view.SetPost(post);
+        }
+
         var newY = ImGui.GetCursorPosY();
         var newHeight = newY - y;
         post.UiState.ContentHeight = newHeight;
     }
 
-    public static void PostInteraction(Models.Post post, FeedService feed, ILogger logger) {
+    public static void PostInteraction(Post post, FeedService feed, ILogger logger) {
         // TODO: add replies
         if (Util.DisabledButton($"Like ({post.LikeCount})###like_{post.PostId}",
                 post.UiState.LikeTask is not null || post.UiState.Liked)) {
@@ -124,6 +149,46 @@ public class Components {
                     post.UiState.RepostTask = null;
                 }
             });
+        }
+    }
+
+    public static bool MenuBar(string label) {
+        var ret = ImGui.Button("<");
+        ImGui.SameLine();
+        ImGui.TextUnformatted(label);
+        ImGui.Separator();
+        return ret;
+    }
+
+    public static void Replies(Post post, FeedService feed, GuiService gui, ILogger logger) {
+        foreach (var reply in post.Replies) {
+            IndentedPost(reply, () => {
+                Post(reply, gui);
+                PostInteraction(reply, feed, logger);
+                Replies(reply, feed, gui, logger);
+            });
+        }
+    }
+
+    public static void IndentedPost(Post post, Action action) {
+        const int indent = 20;
+
+        ImGui.Dummy(new Vector2(indent, 0));
+        ImGui.SameLine();
+
+        var size = post.UiState.ContentHeight is { } contentHeight
+                       ? new Vector2(0, contentHeight)
+                       : Vector2.Zero;
+        if (ImGui.BeginChild("##indent_" + post.PostId, size)) {
+            var y = ImGui.GetCursorPosY();
+
+            action();
+
+            var newY = ImGui.GetCursorPosY();
+            var newHeight = newY - y;
+            post.UiState.ContentHeight = newHeight;
+
+            ImGui.EndChild();
         }
     }
 }

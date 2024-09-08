@@ -16,6 +16,7 @@ using Point = Veldrid.Point;
 namespace ImSky;
 
 public class GuiService(Config config, ILogger<GuiService> logger) : IHostedService {
+    public const bool ShowImGuiDebug = false;
     private static readonly RgbaFloat BackgroundColor = new(0.1f, 0.1f, 0.1f, 1f);
 
     private Task task = null!;
@@ -33,6 +34,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
 
     private View? currentView;
     private View? queuedView;
+    private string windowName = string.Empty;
 
     public Task StartAsync(CancellationToken cancellationToken) {
         this.cts = new CancellationTokenSource();
@@ -45,8 +47,10 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         return this.task;
     }
 
-    public void SetView<T>() where T : View {
-        this.queuedView = Program.Host.Services.GetRequiredService<T>();
+    public T SetView<T>() where T : View {
+        var view = Program.Host.Services.GetRequiredService<T>();
+        this.queuedView = view;
+        return view;
     }
 
     public void ProcessQueuedView() {
@@ -55,6 +59,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
             this.currentView = this.queuedView;
             this.queuedView = null;
             this.currentView.OnActivate();
+            this.windowName = this.currentView.GetType().Name;
         }
     }
 
@@ -156,10 +161,13 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         const ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize
                                        | ImGuiWindowFlags.NoCollapse
                                        | ImGuiWindowFlags.NoDecoration;
-        ImGui.SetNextWindowPos(Vector2.Zero);
-        ImGui.SetNextWindowSize(ImGui.GetIO().DisplaySize, ImGuiCond.Always);
 
-        if (ImGui.Begin("ImSky", flags)) {
+        const int debugWidth = 500;
+        var size = ImGui.GetIO().DisplaySize;
+        if (ShowImGuiDebug) size.X -= debugWidth;
+        ImGui.SetNextWindowSize(size, ImGuiCond.Always);
+        ImGui.SetNextWindowPos(Vector2.Zero);
+        if (ImGui.Begin(this.windowName, flags)) {
             try {
                 this.currentView.Draw();
             } catch (Exception e) {
@@ -169,6 +177,12 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         ImGui.End();
 
         this.currentView.PostDraw();
+
+        if (ShowImGuiDebug) {
+            ImGui.SetNextWindowSize(size with {X = debugWidth}, ImGuiCond.Always);
+            ImGui.SetNextWindowPos(size with {Y = 0}, ImGuiCond.Always);
+            ImGui.ShowMetricsWindow();
+        }
     }
 
     public Texture GetTexture(string url) {

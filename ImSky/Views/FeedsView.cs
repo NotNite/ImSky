@@ -14,20 +14,25 @@ public class FeedsView(
     private Task? fetchingTask;
 
     public override void Draw() {
-        foreach (var post in feed.Posts) {
+        foreach (var post in feed.Posts.ToList()) {
             // TODO: replies
             if (post.ReplyParent is not null || post.ReplyRoot is not null) continue;
 
             var y = ImGui.GetCursorPosY();
 
-            if (post.UiState.TotalHeight is { } feedHeight) {
+            if (post.UiState.TotalHeight is { } totalHeight) {
                 var visibleStart = ImGui.GetScrollY();
                 var visibleEnd = visibleStart + ImGui.GetWindowHeight();
-                var offScreen = y + feedHeight < visibleStart || y > visibleEnd;
+                var offScreen = y + totalHeight < visibleStart || y > visibleEnd;
                 if (offScreen) {
-                    ImGui.SetCursorPosY(y + feedHeight);
+                    ImGui.Dummy(new Vector2(0, totalHeight));
+                    ImGui.Separator();
                     continue;
                 }
+            }
+
+            if (post.ReplyParent is not null || post.ReplyRoot is not null) {
+
             }
 
             Components.Post(post, gui);
@@ -54,7 +59,7 @@ public class FeedsView(
         this.fetchingTask = Task.Run(async () => {
             try {
                 this.cursor = await feed.FetchPosts(this.cursor);
-                logger.LogDebug("Fetched posts, got cursor: {Cursor}", cursor);
+                logger.LogDebug("Fetched posts, got cursor: {Cursor}", this.cursor);
                 this.fetchingTask = null;
             } catch (Exception e) {
                 logger.LogError(e, "Failed to get timeline");

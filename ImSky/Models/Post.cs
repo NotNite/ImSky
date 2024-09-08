@@ -4,23 +4,24 @@ using FishyFlip.Models;
 namespace ImSky.Models;
 
 public record Post {
-    public Ipfs.Cid PostId;
-    public ATUri PostUri;
+    public readonly Ipfs.Cid PostId;
+    public readonly ATUri PostUri;
 
     public required User Author;
-    public string? Text;
+    public readonly string? Text;
     public required List<Embed> Embeds;
     public DateTime CreatedAt;
 
     public Post? ReplyParent;
     public Post? ReplyRoot;
-    public User? RepostedBy;
+    public readonly User? RepostedBy;
+    public readonly List<Post> Replies = [];
 
     public int LikeCount;
     public int RepostCount;
     public int ReplyCount;
 
-    public PostUiState UiState = new();
+    public readonly PostUiState UiState = new();
 
     [SetsRequiredMembers]
     public Post(PostView post) {

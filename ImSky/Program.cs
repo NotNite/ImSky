@@ -1,4 +1,5 @@
-﻿using ImSky.Api;
+﻿using System.Reflection;
+using ImSky.Api;
 using ImSky.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,6 +10,7 @@ namespace ImSky;
 public class Program {
     public static string AppDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ImSky");
+    public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version!.ToString();
     public static IHost Host = null!;
 
     public static void Main() {
@@ -24,8 +26,11 @@ public class Program {
             .MinimumLevel.Debug()
             .CreateLogger();
 
-        var builder = new HostApplicationBuilder();
-        builder.Environment.ContentRootPath = AppDir;
+        var builder = new HostApplicationBuilder {
+            Environment = {
+                ContentRootPath = AppDir
+            }
+        };
         builder.Services.AddSerilog();
 
         builder.Services.AddSingleton(config);
@@ -36,6 +41,7 @@ public class Program {
 
         builder.Services.AddSingleton<LoginView>();
         builder.Services.AddSingleton<FeedsView>();
+        builder.Services.AddSingleton<PostView>();
 
         Host = builder.Build();
         Host.Start();

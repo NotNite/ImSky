@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using FishyFlip.Models;
 using Serilog;
 
 namespace ImSky;
@@ -18,11 +19,12 @@ public class Config : IDisposable {
     [JsonInclude] public int WindowWidth = 540;
     [JsonInclude] public int WindowHeight = 960;
 
+    // Login
     [JsonInclude] public string Pds = "https://bsky.social";
     [JsonInclude] public string? Handle;
-    [JsonInclude] public string? Password;
-    [JsonInclude] public bool SavePassword;
     [JsonInclude] public bool AutoLogin = true;
+    [JsonInclude] public Session? Session;
+    [JsonInclude] public bool SaveSession;
 
     public static Config Load() {
         Config config;
@@ -41,8 +43,8 @@ public class Config : IDisposable {
     }
 
     public void Fixup() {
-        if (this.Password is not null && !this.SavePassword) {
-            this.Password = null;
+        if (this.Session is not null && !this.SaveSession) {
+            this.Session = null;
         }
     }
 

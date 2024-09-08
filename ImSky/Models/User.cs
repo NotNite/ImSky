@@ -6,7 +6,7 @@ namespace ImSky.Models;
 public record User {
     public required string Handle;
     public required string AvatarUrl;
-    public string? DisplayName;
+    public readonly string? DisplayName;
 
     [SetsRequiredMembers]
     public User(FeedProfile feedProfile) {
