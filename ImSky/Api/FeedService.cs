@@ -49,6 +49,7 @@ public class FeedService(AtProtoService atProto) {
             foreach (var reply in replies) {
                 if (reply.Post is null) continue;
                 var replyPost = new Models.Post(reply.Post);
+                if (subpost.Replies.Any(p => p.PostId.ToString() == replyPost.PostId.ToString())) continue;
 
                 // Link the reply to the parent post
                 replyPost.ReplyParent = subpost;

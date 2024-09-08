@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using FishyFlip.Models;
 using ImGuiNET;
 using ImSky.Api;
 using Microsoft.Extensions.Logging;
@@ -16,8 +17,6 @@ public class FeedsView(
     public override void Draw() {
         foreach (var post in feed.Posts.ToList()) {
             // TODO: replies
-            if (post.ReplyParent is not null || post.ReplyRoot is not null) continue;
-
             var y = ImGui.GetCursorPosY();
 
             if (post.UiState.TotalHeight is { } totalHeight) {
@@ -31,8 +30,13 @@ public class FeedsView(
                 }
             }
 
-            if (post.ReplyParent is not null || post.ReplyRoot is not null) {
-
+            if (post.ReplyRoot is not null) {
+                Components.Post(post.ReplyRoot, gui);
+                Components.PostInteraction(post.ReplyRoot, feed, logger);
+            }
+            if (post.ReplyParent is not null && post.ReplyParent.PostId != post.ReplyRoot?.PostId) {
+                Components.Post(post.ReplyParent, gui);
+                Components.PostInteraction(post.ReplyParent, feed, logger);
             }
 
             Components.Post(post, gui);

@@ -50,6 +50,14 @@ public record Post {
                 });
                 break;
             }
+
+            case RecordWithMediaViewEmbed recordWithMediaView: {
+                if (recordWithMediaView.Record is null) break;
+                this.Embeds.Add(new PostEmbed {
+                    Post = new Post(recordWithMediaView.Record.Post)
+                });
+                break;
+            }
         }
 
         this.LikeCount = post.LikeCount;

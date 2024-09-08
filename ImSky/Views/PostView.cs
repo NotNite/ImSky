@@ -46,17 +46,21 @@ public class PostView(
         }
 
         if (this.CurrentPost.ReplyRoot is not null) {
+            ImGui.PushID(this.CurrentPost.ReplyRoot.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyRoot, () => {
                 Components.Post(this.CurrentPost.ReplyRoot, gui);
                 Components.PostInteraction(this.CurrentPost.ReplyRoot, feed, logger);
             });
+            ImGui.PopID();
         }
 
         if (this.CurrentPost.ReplyParent is not null && this.CurrentPost.ReplyParent.PostId != this.CurrentPost.ReplyRoot?.PostId) {
+            ImGui.PushID(this.CurrentPost.ReplyParent.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyParent, () => {
                 Components.Post(this.CurrentPost.ReplyParent, gui);
                 Components.PostInteraction(this.CurrentPost.ReplyParent, feed, logger);
             });
+            ImGui.PopID();
         }
 
         Components.Post(this.CurrentPost, gui);

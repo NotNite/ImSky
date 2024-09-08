@@ -53,7 +53,14 @@ public class Components {
         ImGui.PopStyleColor();
 
         if (post.Text is not null) {
-            ImGui.TextWrapped(post.Text.Replace("%", "%%"));
+            ImGui.TextWrapped(post.Text
+                // bad imgui escapes
+                .Replace("%", "%%")
+                // smart quotes
+                .Replace("\u201c", "\"")
+                .Replace("\u201d", "\"")
+                .Replace("\u2018", "'")
+            );
         }
 
         var twoOrMore = post.Embeds.Count > 1;
@@ -179,7 +186,7 @@ public class Components {
         var size = post.UiState.ContentHeight is { } contentHeight
                        ? new Vector2(0, contentHeight)
                        : Vector2.Zero;
-        if (ImGui.BeginChild("##indent_" + post.PostId, size)) {
+        if (ImGui.BeginChild("##indent_" + post.PostUri, size)) {
             var y = ImGui.GetCursorPosY();
 
             action();
