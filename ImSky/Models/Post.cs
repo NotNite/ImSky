@@ -1,0 +1,83 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using FishyFlip.Models;
+
+namespace ImSky.Models;
+
+public record Post {
+    public Ipfs.Cid PostId;
+    public ATUri PostUri;
+
+    public required User Author;
+    public string? Text;
+    public required List<Embed> Embeds;
+    public DateTime CreatedAt;
+
+    public Post? ReplyParent;
+    public Post? ReplyRoot;
+    public User? RepostedBy;
+
+    public int LikeCount;
+    public int RepostCount;
+    public int ReplyCount;
+
+    public PostUiState UiState = new();
+
+    [SetsRequiredMembers]
+    public Post(PostView post) {
+        this.PostId = post.Cid;
+        this.PostUri = post.Uri;
+
+        this.Author = new User(post.Author);
+        this.Text = post.Record?.Text;
+        this.CreatedAt = post.Record?.CreatedAt ?? DateTime.Now;
+
+        this.Embeds = [];
+        switch (post.Embed) {
+            case ImageViewEmbed imageView: {
+                foreach (var image in imageView.Images) {
+                    this.Embeds.Add(new ImageEmbed {
+                        ThumbnailUrl = image.Thumb,
+                        FullUrl = image.Fullsize
+                    });
+                }
+                break;
+            }
+
+            case RecordViewEmbed recordView: {
+                this.Embeds.Add(new PostEmbed {
+                    Post = new Post(recordView.Post)
+                });
+                break;
+            }
+        }
+
+        this.LikeCount = post.LikeCount;
+        this.RepostCount = post.RepostCount;
+        this.ReplyCount = post.ReplyCount;
+    }
+
+    [SetsRequiredMembers]
+    public Post(FeedViewPost feedView) : this(feedView.Post) {
+        if (feedView.Reply?.Parent is not null) this.ReplyParent = new Post(feedView.Reply.Parent);
+        if (feedView.Reply?.Root is not null) this.ReplyRoot = new Post(feedView.Reply.Root);
+        if (feedView.Reason is {Type: "app.bsky.feed.defs#reasonRepost", By: not null}) {
+            this.RepostedBy = new User(feedView.Reason.By);
+        }
+    }
+}
+
+public record PostUiState {
+    public float? ContentHeight;
+    public float? TotalHeight;
+
+    public bool Liked;
+    public bool Reposted;
+    public bool Replied;
+
+    public Task? LikeTask;
+    public Task? RepostTask;
+    public Task? ReplyTask;
+
+    public bool IsReplying;
+    public string ReplyText = string.Empty;
+}
