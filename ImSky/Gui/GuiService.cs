@@ -196,7 +196,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
 
                 try {
                     var data = await this.client.GetByteArrayAsync(url);
-                    logger.LogDebug("Loaded texture from {Url}", url);
+                    //logger.LogDebug("Loaded texture from {Url}", url);
 
                     var img = Image.Load(data);
                     var rgba = img.CloneAs<Bgra32>();
@@ -219,7 +219,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         foreach (var (key, value) in this.textures) {
             if (value.LastUsed < cutoff) {
                 this.textures.Remove(key);
-                this.imgui.RemoveImGuiBinding(value.View!);
+                if (value.View is not null) this.imgui.RemoveImGuiBinding(value.View);
                 value.Dispose();
             }
         }

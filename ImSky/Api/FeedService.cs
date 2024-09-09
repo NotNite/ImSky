@@ -7,8 +7,27 @@ namespace ImSky.Api;
 public class FeedService(AtProtoService atProto) {
     public const int PageSize = 20;
 
-    public ATUri? Feed;
+    public Feed? Feed;
+    public List<Feed> Feeds = new();
     public List<Models.Post> Posts = new();
+
+    public async Task FetchFeeds() {
+        var preferences = (await atProto.AtProtocol.Actor.GetPreferencesAsync()).HandleResult();
+        if (preferences is null) return;
+
+        var ids = new List<ATUri>();
+        foreach (var pref in preferences.Preferences) {
+            if (pref is SavedFeedsPref {Saved: not null} savedFeeds) ids.AddRange(savedFeeds.Saved);
+        }
+
+        var feeds = (await atProto.AtProtocol.Feed.GetFeedGeneratorsAsync(ids)).HandleResult();
+        if (feeds is null) return;
+
+        this.Feeds.Clear();
+        foreach (var feed in feeds.Feeds) {
+            this.Feeds.Add(new Feed(feed));
+        }
+    }
 
     public async Task<string?> FetchPosts(string? cursor = null) {
         FeedViewPost[] feedView;
@@ -18,7 +37,7 @@ public class FeedService(AtProtoService atProto) {
             feedView = timeline.Feed;
             newCursor = timeline.Cursor;
         } else {
-            var feed = (await atProto.AtProtocol.Feed.GetFeedAsync(this.Feed, PageSize, cursor)).HandleResult();
+            var feed = (await atProto.AtProtocol.Feed.GetFeedAsync(this.Feed.Uri, PageSize, cursor)).HandleResult();
             feedView = feed.Feed;
             newCursor = feed.Cursor;
         }
@@ -34,6 +53,10 @@ public class FeedService(AtProtoService atProto) {
                     this.Posts.RemoveAll(p => p.PostId.ToString() == postEmbed.Post.PostId.ToString());
                 }
             }
+
+            // Same with replies - remove the original post(s)
+            this.Posts.RemoveAll(p => p.PostId.ToString() == post.ReplyRoot?.PostId.ToString());
+            this.Posts.RemoveAll(p => p.PostId.ToString() == post.ReplyParent?.PostId.ToString());
         }
 
         // Remove duplicate posts

@@ -77,6 +77,7 @@ public record Post {
 
 public record PostUiState {
     public float? ContentHeight;
+    public float? IndentHeight;
     public float? TotalHeight;
 
     public bool Liked;

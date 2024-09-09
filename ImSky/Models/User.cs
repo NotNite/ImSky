@@ -22,4 +22,11 @@ public record User {
         this.AvatarUrl = actorProfile.Avatar ?? string.Empty;
         this.DisplayName = actorProfile.DisplayName;
     }
+
+    [SetsRequiredMembers]
+    public User(FeedCreator actorProfile) {
+        this.Handle = actorProfile.Handle;
+        this.AvatarUrl = actorProfile.Avatar;
+        this.DisplayName = actorProfile.DisplayName;
+    }
 }

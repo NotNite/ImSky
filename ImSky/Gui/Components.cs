@@ -10,13 +10,21 @@ using Post = ImSky.Models.Post;
 namespace ImSky;
 
 public class Components {
-    public static void Post(Post post, GuiService gui, bool inChild = false, string? label = null) {
+    public static void Post(
+        Post post,
+        GuiService gui,
+        bool inChild = false,
+        bool skipContent = false,
+        string? label = null
+    ) {
         var y = ImGui.GetCursorPosY();
 
         var style = ImGui.GetStyle();
         var lineHeight = ImGui.GetTextLineHeight();
         var spacing = style.ItemSpacing.Y;
         var size = (lineHeight * 2) + spacing;
+        var scrollbar = ImGui.GetStyle().ScrollbarSize;
+        var width = ImGui.GetContentRegionAvail().X - scrollbar;
 
         ImGui.BeginGroup();
 
@@ -26,41 +34,46 @@ public class Components {
                         : $"Reposted by {repostedBy.DisplayName} (@{post.RepostedBy.Handle})";
         }
 
-        if (label is not null) {
+        if (!skipContent) {
+            if (label is not null) {
+                ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
+                ImGui.SetNextItemWidth(width);
+                ImGui.TextUnformatted(label);
+                ImGui.PopStyleColor();
+            }
+
+            var avatar = gui.GetTexture(post.Author.AvatarUrl);
+            avatar.Draw(new Vector2(size, size));
+            ImGui.SameLine();
+
+            var posPrev = ImGui.GetCursorPos();
+            ImGui.TextUnformatted(post.Author.DisplayName ?? "@" + post.Author.Handle);
+
+            var dateStr = Util.FormatRelative(DateTime.UtcNow - post.CreatedAt);
+            var dateStrSize = ImGui.CalcTextSize(dateStr);
+            var posDate = posPrev with {X = ImGui.GetWindowWidth() - dateStrSize.X - ImGui.GetStyle().WindowPadding.X};
+            posDate.X -= scrollbar;
+            ImGui.SetCursorPos(posDate);
+            ImGui.TextUnformatted(dateStr);
+
+            var posNext = posPrev + new Vector2(0, lineHeight + spacing);
+            ImGui.SetCursorPos(posNext);
+
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
-            ImGui.TextUnformatted(label);
+            ImGui.TextUnformatted("@" + post.Author.Handle);
             ImGui.PopStyleColor();
-        }
 
-        var avatar = gui.GetTexture(post.Author.AvatarUrl);
-        avatar.Draw(new Vector2(size, size));
-        ImGui.SameLine();
-
-        var posPrev = ImGui.GetCursorPos();
-        ImGui.TextUnformatted(post.Author.DisplayName ?? "@" + post.Author.Handle);
-
-        var dateStr = Util.FormatRelative(DateTime.UtcNow - post.CreatedAt);
-        var dateStrSize = ImGui.CalcTextSize(dateStr);
-        var posDate = posPrev with {X = ImGui.GetWindowWidth() - dateStrSize.X - ImGui.GetStyle().WindowPadding.X};
-        ImGui.SetCursorPos(posDate);
-        ImGui.TextUnformatted(dateStr);
-
-        var posNext = posPrev + new Vector2(0, lineHeight + spacing);
-        ImGui.SetCursorPos(posNext);
-
-        ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
-        ImGui.TextUnformatted("@" + post.Author.Handle);
-        ImGui.PopStyleColor();
-
-        if (post.Text is not null) {
-            ImGui.TextWrapped(post.Text
-                // bad imgui escapes
-                .Replace("%", "%%")
-                // smart quotes
-                .Replace("\u201c", "\"")
-                .Replace("\u201d", "\"")
-                .Replace("\u2018", "'")
-            );
+            if (post.Text is not null) {
+                ImGui.SetNextItemWidth(width);
+                ImGui.TextWrapped(post.Text
+                    // bad imgui escapes
+                    .Replace("%", "%%")
+                    // smart quotes
+                    .Replace("\u201c", "\"")
+                    .Replace("\u201d", "\"")
+                    .Replace("\u2018", "'")
+                );
+            }
         }
 
         var twoOrMore = post.Embeds.Count > 1;
@@ -85,10 +98,11 @@ public class Components {
                         attachmentSize = new Vector2(maxHeight * ratio, maxHeight);
                     }
 
-                    image.Draw(attachmentSize);
-
-                    if (twoOrMore && i % 2 == 0 && i + 1 < post.Embeds.Count) {
-                        ImGui.SameLine();
+                    if (!skipContent) {
+                        image.Draw(attachmentSize);
+                        if (twoOrMore && i % 2 == 0 && i + 1 < post.Embeds.Count) {
+                            ImGui.SameLine();
+                        }
                     }
                     break;
                 }
@@ -100,18 +114,18 @@ public class Components {
                     var childSize = postEmbed.Post.UiState.ContentHeight is { } contentHeight
                                         ? cra with {Y = contentHeight + (style.WindowPadding.Y * 2)}
                                         : Vector2.Zero;
-                    if (ImGui.BeginChild($"postchild_{post.PostId}_{postEmbed.Post.PostId}", childSize, childFlags)) {
-                        var childY = ImGui.GetCursorPosY();
 
-                        Post(postEmbed.Post, gui, inChild: true);
+                    ImGui.BeginChild($"##postchild_{post.PostUri}_{postEmbed.Post.PostUri}",
+                        childSize, childFlags);
+                    var childY = ImGui.GetCursorPosY();
 
-                        var childNewY = ImGui.GetCursorPosY();
-                        var childNewHeight = childNewY - childY;
-                        postEmbed.Post.UiState.ContentHeight = childNewHeight;
+                    Post(postEmbed.Post, gui, inChild: true, skipContent: skipContent);
 
-                        ImGui.EndChild();
-                    }
+                    var childNewY = ImGui.GetCursorPosY();
+                    var childNewHeight = childNewY - childY;
+                    if (!skipContent) postEmbed.Post.UiState.ContentHeight = childNewHeight;
 
+                    ImGui.EndChild();
                     break;
                 }
             }
@@ -125,7 +139,7 @@ public class Components {
 
         var newY = ImGui.GetCursorPosY();
         var newHeight = newY - y;
-        post.UiState.ContentHeight = newHeight;
+        if (!skipContent) post.UiState.ContentHeight = newHeight;
     }
 
     public static void PostInteraction(Post post, FeedService feed, ILogger logger) {
@@ -159,10 +173,13 @@ public class Components {
         }
     }
 
-    public static bool MenuBar(string label) {
-        var ret = ImGui.Button("<");
-        ImGui.SameLine();
-        ImGui.TextUnformatted(label);
+    public static bool MenuBar(Action draw, bool goBack = true) {
+        var ret = false;
+        if (goBack) {
+            ret = ImGui.Button("<");
+            ImGui.SameLine();
+        }
+        draw();
         ImGui.Separator();
         return ret;
     }
@@ -183,19 +200,18 @@ public class Components {
         ImGui.Dummy(new Vector2(indent, 0));
         ImGui.SameLine();
 
-        var size = post.UiState.ContentHeight is { } contentHeight
-                       ? new Vector2(0, contentHeight)
+        var size = post.UiState.IndentHeight is { } indentHeight
+                       ? new Vector2(0, indentHeight)
                        : Vector2.Zero;
-        if (ImGui.BeginChild("##indent_" + post.PostUri, size)) {
-            var y = ImGui.GetCursorPosY();
+        ImGui.BeginChild("##indent_" + post.PostUri, size, ImGuiChildFlags.AutoResizeY);
+        var y = ImGui.GetCursorPosY();
 
-            action();
+        action();
 
-            var newY = ImGui.GetCursorPosY();
-            var newHeight = newY - y;
-            post.UiState.ContentHeight = newHeight;
+        var newY = ImGui.GetCursorPosY();
+        var newHeight = newY - y;
+        post.UiState.IndentHeight = newHeight;
 
-            ImGui.EndChild();
-        }
+        ImGui.EndChild();
     }
 }

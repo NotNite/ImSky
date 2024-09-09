@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using System.Numerics;
+using ImGuiNET;
 using ImSky.Api;
 using ImSky.Models;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ public class PostView(
             gui.SetView<FeedsView>();
             return;
         }
-        if (Components.MenuBar("Post")) {
+        if (Components.MenuBar(() => ImGui.TextUnformatted("Post"))) {
             this.stack.RemoveAt(this.stack.Count - 1);
             return;
         }
@@ -54,7 +55,8 @@ public class PostView(
             ImGui.PopID();
         }
 
-        if (this.CurrentPost.ReplyParent is not null && this.CurrentPost.ReplyParent.PostId != this.CurrentPost.ReplyRoot?.PostId) {
+        if (this.CurrentPost.ReplyParent is not null &&
+            this.CurrentPost.ReplyParent.PostId != this.CurrentPost.ReplyRoot?.PostId) {
             ImGui.PushID(this.CurrentPost.ReplyParent.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyParent, () => {
                 Components.Post(this.CurrentPost.ReplyParent, gui);
