@@ -6,7 +6,8 @@ namespace ImSky.Views;
 
 public class WriteView(
     GuiService gui,
-    InteractionService interaction
+    InteractionService interaction,
+    FeedService feed
 ) : View {
     public const int WriteLimit = 300;
 
@@ -38,6 +39,12 @@ public class WriteView(
             return;
         }
 
+        if (this.ReplyTo is not null) {
+            Components.IndentedPost(this.ReplyTo, () => {
+                Components.Post(this.ReplyTo);
+            });
+        }
+
         const ImGuiInputTextFlags flags = ImGuiInputTextFlags.EnterReturnsTrue;
         ImGui.InputTextMultiline("##write_content", ref this.content, 1024, Vector2.Zero, flags);
 
@@ -46,7 +53,12 @@ public class WriteView(
         if (ImGui.Button("Post")) {
             this.uploadTask = Task.Run(async () => {
                 try {
-                    await interaction.Post(this.content, this.ReplyTo);
+                    var post = await interaction.Post(this.content, this.ReplyTo);
+                    feed.Posts.Insert(0, post);
+                    if (this.ReplyTo is not null) {
+                        this.ReplyTo.Replies.Add(post);
+                        this.ReplyTo.ReplyCount++;
+                    }
                     this.Retreat();
                 } catch (Exception e) {
                     ImGui.OpenPopup("Error");

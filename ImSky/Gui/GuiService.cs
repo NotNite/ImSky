@@ -12,6 +12,7 @@ using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
 using Point = Veldrid.Point;
+#pragma warning disable CS0162 // Unreachable code detected
 
 namespace ImSky;
 
@@ -46,6 +47,8 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         this.cts.Cancel();
         return this.task;
     }
+
+    public View? GetView() => this.currentView;
 
     public T SetView<T>() where T : View {
         var view = Program.Host.Services.GetRequiredService<T>();

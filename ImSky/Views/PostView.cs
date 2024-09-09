@@ -8,7 +8,6 @@ namespace ImSky.Views;
 public class PostView(
     GuiService gui,
     FeedService feed,
-    InteractionService interaction,
     ILogger<PostView> logger
 ) : View {
     private readonly List<Post> stack = new();
@@ -49,8 +48,8 @@ public class PostView(
         if (this.CurrentPost.ReplyRoot is not null) {
             ImGui.PushID(this.CurrentPost.ReplyRoot.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyRoot, () => {
-                Components.Post(this.CurrentPost.ReplyRoot, gui);
-                Components.PostInteraction(this.CurrentPost.ReplyRoot, interaction, logger);
+                Components.Post(this.CurrentPost.ReplyRoot);
+                Components.PostInteraction(this.CurrentPost.ReplyRoot);
             });
             ImGui.PopID();
         }
@@ -59,14 +58,14 @@ public class PostView(
             this.CurrentPost.ReplyParent.PostId != this.CurrentPost.ReplyRoot?.PostId) {
             ImGui.PushID(this.CurrentPost.ReplyParent.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyParent, () => {
-                Components.Post(this.CurrentPost.ReplyParent, gui);
-                Components.PostInteraction(this.CurrentPost.ReplyParent, interaction, logger);
+                Components.Post(this.CurrentPost.ReplyParent);
+                Components.PostInteraction(this.CurrentPost.ReplyParent);
             });
             ImGui.PopID();
         }
 
-        Components.Post(this.CurrentPost, gui);
-        Components.PostInteraction(this.CurrentPost, interaction, logger);
+        Components.Post(this.CurrentPost);
+        Components.PostInteraction(this.CurrentPost);
 
         ImGui.Separator();
 
@@ -75,6 +74,6 @@ public class PostView(
             return;
         }
 
-        Components.Replies(this.CurrentPost, gui, interaction, logger);
+        Components.Replies(this.CurrentPost);
     }
 }

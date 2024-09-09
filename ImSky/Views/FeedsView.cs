@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using FishyFlip.Models;
 using ImGuiNET;
 using ImSky.Api;
 using Microsoft.Extensions.Logging;
@@ -9,7 +8,6 @@ namespace ImSky.Views;
 public class FeedsView(
     GuiService gui,
     FeedService feed,
-    InteractionService interaction,
     ILogger<FeedsView> logger
 ) : View {
     private string? cursor;
@@ -56,16 +54,16 @@ public class FeedsView(
                 //logger.LogDebug("y: {Y}, offScreen: {OffScreen}", y, offScreen);
 
                 if (post.ReplyRoot is not null) {
-                    Components.Post(post.ReplyRoot, gui, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyRoot, interaction, logger);
+                    Components.Post(post.ReplyRoot, skipContent: offScreen);
+                    if (!offScreen) Components.PostInteraction(post.ReplyRoot);
                 }
                 if (post.ReplyParent is not null && post.ReplyParent.PostId != post.ReplyRoot?.PostId) {
-                    Components.Post(post.ReplyParent, gui, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyParent, interaction, logger);
+                    Components.Post(post.ReplyParent, skipContent: offScreen);
+                    if (!offScreen) Components.PostInteraction(post.ReplyParent);
                 }
 
-                Components.Post(post, gui, skipContent: offScreen);
-                if (!offScreen) Components.PostInteraction(post, interaction, logger);
+                Components.Post(post, skipContent: offScreen);
+                if (!offScreen) Components.PostInteraction(post);
 
                 var newY = ImGui.GetCursorPosY();
                 var newHeight = newY - y;

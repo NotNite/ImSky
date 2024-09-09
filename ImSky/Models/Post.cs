@@ -82,7 +82,6 @@ public record PostUiState {
 
     public bool Liked;
     public bool Reposted;
-    public bool Replied;
 
     public Task? LikeTask;
     public Task? RepostTask;

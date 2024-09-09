@@ -2,16 +2,22 @@
 using ImGuiNET;
 using ImSky.Api;
 using ImSky.Models;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 using ImageEmbed = ImSky.Models.ImageEmbed;
 using Post = ImSky.Models.Post;
 
 namespace ImSky;
 
 public class Components {
+    // This sucks lol
+    private static Lazy<GuiService> Gui => new(() => Program.Host.Services.GetRequiredService<GuiService>());
+    private static Lazy<InteractionService> Interaction =>
+        new(() => Program.Host.Services.GetRequiredService<InteractionService>());
+
     public static void Post(
         Post post,
-        GuiService gui,
         bool inChild = false,
         bool skipContent = false,
         string? label = null
@@ -41,7 +47,7 @@ public class Components {
                 ImGui.PopStyleColor();
             }
 
-            var avatar = gui.GetTexture(post.Author.AvatarUrl);
+            var avatar = Gui.Value.GetTexture(post.Author.AvatarUrl);
             avatar.Draw(new Vector2(size, size));
             ImGui.SameLine();
 
@@ -80,7 +86,7 @@ public class Components {
         foreach (var (embed, i) in post.Embeds.Select((x, i) => (x, i))) {
             switch (embed) {
                 case ImageEmbed imageEmbed: {
-                    var image = gui.GetTexture(imageEmbed.ThumbnailUrl);
+                    var image = Gui.Value.GetTexture(imageEmbed.ThumbnailUrl);
                     var maxWidth = cra.X - 100;
                     var maxHeight = lineHeight * 20;
 
@@ -118,7 +124,7 @@ public class Components {
                         childSize, childFlags);
                     var childY = ImGui.GetCursorPosY();
 
-                    Post(postEmbed.Post, gui, inChild: true, skipContent: skipContent);
+                    Post(postEmbed.Post, inChild: true, skipContent: skipContent);
 
                     var childNewY = ImGui.GetCursorPosY();
                     var childNewHeight = childNewY - childY;
@@ -132,7 +138,7 @@ public class Components {
 
         ImGui.EndGroup();
         if (ImGui.IsItemClicked()) {
-            var view = gui.SetView<Views.PostView>();
+            var view = Gui.Value.SetView<Views.PostView>();
             view.SetPost(post);
         }
 
@@ -141,15 +147,23 @@ public class Components {
         if (!skipContent) post.UiState.ContentHeight = newHeight;
     }
 
-    public static void PostInteraction(Post post, InteractionService interaction, ILogger logger) {
-        // TODO: add replies
+    public static void PostInteraction(Post post) {
+        if (Util.DisabledButton($"Reply ({post.ReplyCount})###reply_{post.PostId}",
+                post.UiState.ReplyTask is not null)) {
+            var view = Gui.Value.SetView<Views.WriteView>();
+            view.Parent = Gui.Value.GetView();
+            view.ReplyTo = post;
+        }
+
+        ImGui.SameLine();
+
         if (Util.DisabledButton($"Like ({post.LikeCount})###like_{post.PostId}",
                 post.UiState.LikeTask is not null || post.UiState.Liked)) {
             post.UiState.LikeTask = Task.Run(async () => {
                 try {
-                    await interaction.Like(post);
+                    await Interaction.Value.Like(post);
                 } catch (Exception e) {
-                    logger.LogError(e, "Failed to like post");
+                    Log.Error(e, "Failed to like post");
                 } finally {
                     post.UiState.LikeTask = null;
                 }
@@ -163,9 +177,9 @@ public class Components {
                 post.UiState.RepostTask is not null || post.UiState.Reposted)) {
             post.UiState.RepostTask = Task.Run(async () => {
                 try {
-                    await interaction.Repost(post);
+                    await Interaction.Value.Repost(post);
                 } catch (Exception e) {
-                    logger.LogError(e, "Failed to repost post");
+                    Log.Error(e, "Failed to repost post");
                 } finally {
                     post.UiState.RepostTask = null;
                 }
@@ -184,12 +198,12 @@ public class Components {
         return ret;
     }
 
-    public static void Replies(Post post, GuiService gui, InteractionService interaction, ILogger logger) {
+    public static void Replies(Post post) {
         foreach (var reply in post.Replies) {
             IndentedPost(reply, () => {
-                Post(reply, gui);
-                PostInteraction(reply, interaction, logger);
-                Replies(reply, gui, interaction, logger);
+                Post(reply);
+                PostInteraction(reply);
+                Replies(reply);
             });
         }
     }
