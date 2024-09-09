@@ -25,7 +25,7 @@ This is under development, is full of bugs, and is not ready for daily use. You 
   - [ ] Links
 - [ ] Authoring posts
   - [x] New posts
-  - [ ] Replies
+  - [x] Replies
   - [ ] Quote messages
   - [ ] Attaching embeds
   - [ ] Attaching facets
