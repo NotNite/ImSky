@@ -14,7 +14,7 @@ This is under development, is full of bugs, and is not ready for daily use. You 
   - [x] "Following" feed
   - [x] Replies
   - [ ] Profile view
-  - [ ] Custom feeds
+  - [x] Custom feeds
 - [ ] Rich content
   - [ ] Embeds
     - [x] Images
