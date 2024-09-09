@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using System.Reflection.Metadata.Ecma335;
 using ImGuiNET;
 using ImSky.Api;
 using ImSky.Models;
@@ -142,13 +141,13 @@ public class Components {
         if (!skipContent) post.UiState.ContentHeight = newHeight;
     }
 
-    public static void PostInteraction(Post post, FeedService feed, ILogger logger) {
+    public static void PostInteraction(Post post, InteractionService interaction, ILogger logger) {
         // TODO: add replies
         if (Util.DisabledButton($"Like ({post.LikeCount})###like_{post.PostId}",
                 post.UiState.LikeTask is not null || post.UiState.Liked)) {
             post.UiState.LikeTask = Task.Run(async () => {
                 try {
-                    await feed.Like(post);
+                    await interaction.Like(post);
                 } catch (Exception e) {
                     logger.LogError(e, "Failed to like post");
                 } finally {
@@ -159,11 +158,12 @@ public class Components {
 
         ImGui.SameLine();
 
+        // TODO: quote post
         if (Util.DisabledButton($"Repost ({post.RepostCount})###repost_{post.PostId}",
                 post.UiState.RepostTask is not null || post.UiState.Reposted)) {
             post.UiState.RepostTask = Task.Run(async () => {
                 try {
-                    await feed.Repost(post);
+                    await interaction.Repost(post);
                 } catch (Exception e) {
                     logger.LogError(e, "Failed to repost post");
                 } finally {
@@ -184,12 +184,12 @@ public class Components {
         return ret;
     }
 
-    public static void Replies(Post post, FeedService feed, GuiService gui, ILogger logger) {
+    public static void Replies(Post post, GuiService gui, InteractionService interaction, ILogger logger) {
         foreach (var reply in post.Replies) {
             IndentedPost(reply, () => {
                 Post(reply, gui);
-                PostInteraction(reply, feed, logger);
-                Replies(reply, feed, gui, logger);
+                PostInteraction(reply, interaction, logger);
+                Replies(reply, gui, interaction, logger);
             });
         }
     }

@@ -85,16 +85,4 @@ public class FeedService(AtProtoService atProto) {
 
         if (result.Thread.Replies is not null) Process(post, result.Thread.Replies);
     }
-
-    public async Task Like(Models.Post post) {
-        await atProto.AtProtocol.Repo.CreateLikeAsync(post.PostId, post.PostUri);
-        post.LikeCount++;
-        post.UiState.Liked = true;
-    }
-
-    public async Task Repost(Models.Post post) {
-        await atProto.AtProtocol.Repo.CreateRepostAsync(post.PostId, post.PostUri);
-        post.RepostCount++;
-        post.UiState.Reposted = true;
-    }
 }

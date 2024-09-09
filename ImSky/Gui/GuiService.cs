@@ -53,6 +53,11 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         return view;
     }
 
+    public T SetView<T>(T view) where T : View {
+        this.queuedView = view;
+        return view;
+    }
+
     public void ProcessQueuedView() {
         if (this.queuedView != null) {
             this.currentView?.OnDeactivate();

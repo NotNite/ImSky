@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using ImGuiNET;
+﻿using ImGuiNET;
 using ImSky.Api;
 using ImSky.Models;
 using Microsoft.Extensions.Logging;
@@ -9,6 +8,7 @@ namespace ImSky.Views;
 public class PostView(
     GuiService gui,
     FeedService feed,
+    InteractionService interaction,
     ILogger<PostView> logger
 ) : View {
     private readonly List<Post> stack = new();
@@ -50,7 +50,7 @@ public class PostView(
             ImGui.PushID(this.CurrentPost.ReplyRoot.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyRoot, () => {
                 Components.Post(this.CurrentPost.ReplyRoot, gui);
-                Components.PostInteraction(this.CurrentPost.ReplyRoot, feed, logger);
+                Components.PostInteraction(this.CurrentPost.ReplyRoot, interaction, logger);
             });
             ImGui.PopID();
         }
@@ -60,13 +60,13 @@ public class PostView(
             ImGui.PushID(this.CurrentPost.ReplyParent.PostId);
             Components.IndentedPost(this.CurrentPost.ReplyParent, () => {
                 Components.Post(this.CurrentPost.ReplyParent, gui);
-                Components.PostInteraction(this.CurrentPost.ReplyParent, feed, logger);
+                Components.PostInteraction(this.CurrentPost.ReplyParent, interaction, logger);
             });
             ImGui.PopID();
         }
 
         Components.Post(this.CurrentPost, gui);
-        Components.PostInteraction(this.CurrentPost, feed, logger);
+        Components.PostInteraction(this.CurrentPost, interaction, logger);
 
         ImGui.Separator();
 
@@ -75,6 +75,6 @@ public class PostView(
             return;
         }
 
-        Components.Replies(this.CurrentPost, feed, gui, logger);
+        Components.Replies(this.CurrentPost, gui, interaction, logger);
     }
 }

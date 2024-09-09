@@ -9,6 +9,7 @@ namespace ImSky.Views;
 public class FeedsView(
     GuiService gui,
     FeedService feed,
+    InteractionService interaction,
     ILogger<FeedsView> logger
 ) : View {
     private string? cursor;
@@ -31,6 +32,16 @@ public class FeedsView(
                 this.FetchPosts();
             }
             if (disabled) ImGui.EndDisabled();
+
+            const string postText = "Post";
+            var postSize = ImGui.CalcTextSize(postText) + (ImGui.GetStyle().FramePadding * 2);
+
+            ImGui.SameLine();
+            ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(ImGui.GetContentRegionAvail().X - postSize.X, 0));
+            if (ImGui.Button(postText, postSize)) {
+                var write = gui.SetView<WriteView>();
+                write.Parent = this;
+            }
         }, goBack: false);
 
         if (ImGui.BeginChild("##feeds", Vector2.Zero)) {
@@ -46,15 +57,15 @@ public class FeedsView(
 
                 if (post.ReplyRoot is not null) {
                     Components.Post(post.ReplyRoot, gui, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyRoot, feed, logger);
+                    if (!offScreen) Components.PostInteraction(post.ReplyRoot, interaction, logger);
                 }
                 if (post.ReplyParent is not null && post.ReplyParent.PostId != post.ReplyRoot?.PostId) {
                     Components.Post(post.ReplyParent, gui, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyParent, feed, logger);
+                    if (!offScreen) Components.PostInteraction(post.ReplyParent, interaction, logger);
                 }
 
                 Components.Post(post, gui, skipContent: offScreen);
-                if (!offScreen) Components.PostInteraction(post, feed, logger);
+                if (!offScreen) Components.PostInteraction(post, interaction, logger);
 
                 var newY = ImGui.GetCursorPosY();
                 var newHeight = newY - y;

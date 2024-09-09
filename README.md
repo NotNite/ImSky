@@ -24,9 +24,11 @@ This is under development, is full of bugs, and is not ready for daily use. You 
   - [ ] Hashtags
   - [ ] Links
 - [ ] Authoring posts
-  - [ ] New posts
+  - [x] New posts
   - [ ] Replies
   - [ ] Quote messages
+  - [ ] Attaching embeds
+  - [ ] Attaching facets
 - [ ] Notifications
 - [ ] Direct messages
 
