@@ -32,13 +32,31 @@ public class FeedsView(
             if (disabled) ImGui.EndDisabled();
 
             const string postText = "Post";
-            var postSize = ImGui.CalcTextSize(postText) + (ImGui.GetStyle().FramePadding * 2);
+            const string refreshText = "Refresh";
+            var buttonPadding = ImGui.GetStyle().FramePadding * 2;
+            var betweenButtonPadding = ImGui.GetStyle().ItemSpacing.X;
+            var postSize = ImGui.CalcTextSize(postText) + buttonPadding;
+            var refreshSize = ImGui.CalcTextSize(refreshText) + buttonPadding;
+            var totalSize = postSize + refreshSize + new Vector2(betweenButtonPadding, 0);
 
             ImGui.SameLine();
-            ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(ImGui.GetContentRegionAvail().X - postSize.X, 0));
+
+            var cra = ImGui.GetContentRegionAvail().X;
+            var cursorPos = ImGui.GetCursorPos();
+            var postPos = cursorPos + new Vector2(cra - totalSize.X, 0);
+
+            ImGui.SetCursorPos(postPos);
             if (ImGui.Button(postText, postSize)) {
                 var write = gui.SetView<WriteView>();
                 write.Parent = this;
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button(refreshText, refreshSize)) {
+                this.cursor = null;
+                feed.Posts.Clear();
+                this.FetchPosts();
             }
         }, goBack: false);
 
