@@ -21,8 +21,22 @@ public class FeedsView(
             var itemsArray = items.ToArray();
             var selected = feed.Feed is null ? 0 : feed.Feeds.IndexOf(feed.Feed) + 1;
 
+            const string postText = "Post";
+            const string refreshText = "Refresh";
+
+            var doubleFramePadding = ImGui.GetStyle().FramePadding * 2;
+            var itemSpacing = ImGui.GetStyle().ItemSpacing.X;
+            var cra = ImGui.GetContentRegionAvail().X;
+
+            var postSize = ImGui.CalcTextSize(postText) + doubleFramePadding;
+            var refreshSize = ImGui.CalcTextSize(refreshText) + doubleFramePadding;
+            var totalSize = postSize + refreshSize + new Vector2(itemSpacing, 0);
+            var feedsComboSize = new Vector2(cra - totalSize.X - itemSpacing, 0);
+
             var disabled = this.fetchingTask?.IsCompleted == false;
             if (disabled) ImGui.BeginDisabled();
+
+            ImGui.SetNextItemWidth(feedsComboSize.X);
             if (ImGui.Combo("##feeds_combo", ref selected, itemsArray, itemsArray.Length)) {
                 this.cursor = null;
                 feed.Posts.Clear();
@@ -31,28 +45,13 @@ public class FeedsView(
             }
             if (disabled) ImGui.EndDisabled();
 
-            const string postText = "Post";
-            const string refreshText = "Refresh";
-            var buttonPadding = ImGui.GetStyle().FramePadding * 2;
-            var betweenButtonPadding = ImGui.GetStyle().ItemSpacing.X;
-            var postSize = ImGui.CalcTextSize(postText) + buttonPadding;
-            var refreshSize = ImGui.CalcTextSize(refreshText) + buttonPadding;
-            var totalSize = postSize + refreshSize + new Vector2(betweenButtonPadding, 0);
-
             ImGui.SameLine();
-
-            var cra = ImGui.GetContentRegionAvail().X;
-            var cursorPos = ImGui.GetCursorPos();
-            var postPos = cursorPos + new Vector2(cra - totalSize.X, 0);
-
-            ImGui.SetCursorPos(postPos);
             if (ImGui.Button(postText, postSize)) {
                 var write = gui.SetView<WriteView>();
                 write.Parent = this;
             }
 
             ImGui.SameLine();
-
             if (ImGui.Button(refreshText, refreshSize)) {
                 this.cursor = null;
                 feed.Posts.Clear();
