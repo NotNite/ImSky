@@ -119,13 +119,13 @@ public class FeedsView(
             }
 
             if (!this.fetchedFeeds) {
+                this.fetchedFeeds = true;
+
                 try {
                     await feed.FetchFeeds();
                 } catch (Exception e) {
                     logger.LogError(e, "Failed to get feeds");
                 }
-
-                this.fetchedFeeds = true;
             }
 
             // sleep for a bit as a cooldown

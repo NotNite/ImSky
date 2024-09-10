@@ -7,13 +7,24 @@ public record User {
     public required string Handle;
     public required string AvatarUrl;
     public readonly string? DisplayName;
+    public readonly string? Banner;
+    public readonly string? Description;
+
+    public int FollowersCount;
+    public int FollowingCount;
+    public int PostCount;
 
     [SetsRequiredMembers]
     public User(FeedProfile feedProfile) {
-        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
-        this.Handle = feedProfile?.Handle ?? "unknown";
-        this.AvatarUrl = feedProfile?.Avatar ?? string.Empty;
-        this.DisplayName = feedProfile?.DisplayName;
+        // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+        this.Handle = feedProfile.Handle ?? "unknown";
+        this.AvatarUrl = feedProfile.Avatar ?? string.Empty;
+        this.DisplayName = feedProfile.DisplayName;
+        this.Banner = feedProfile.Banner;
+        this.FollowersCount = feedProfile.FollowersCount;
+        this.FollowingCount = feedProfile.FollowsCount;
+        this.PostCount = feedProfile.PostsCount;
+        this.Description = feedProfile.Description;
     }
 
     [SetsRequiredMembers]

@@ -31,8 +31,6 @@ public class Components {
         var scrollbar = ImGui.GetStyle().ScrollbarSize;
         var width = ImGui.GetContentRegionAvail().X - scrollbar;
 
-        ImGui.BeginGroup();
-
         if (post.RepostedBy is { } repostedBy) {
             label = repostedBy.DisplayName is null
                         ? $"Reposted by @{post.RepostedBy.Handle}"
@@ -47,6 +45,7 @@ public class Components {
                 ImGui.PopStyleColor();
             }
 
+            ImGui.BeginGroup();
             var avatar = Gui.Value.GetTexture(post.Author.AvatarUrl);
             avatar.Draw(new Vector2(size, size));
             ImGui.SameLine();
@@ -67,17 +66,20 @@ public class Components {
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
             ImGui.TextUnformatted("@" + post.Author.Handle);
             ImGui.PopStyleColor();
+            ImGui.EndGroup();
+            if (ImGui.IsItemClicked()) {
+                var view = Gui.Value.SetView<Views.UserView>();
+                view.Handle = post.Author.Handle;
+                view.Parent = Gui.Value.GetView();
+            }
 
             if (post.Text is not null) {
                 ImGui.SetNextItemWidth(width);
-                ImGui.TextWrapped(post.Text
-                    // bad imgui escapes
-                    .Replace("%", "%%")
-                    // smart quotes
-                    .Replace("\u201c", "\"")
-                    .Replace("\u201d", "\"")
-                    .Replace("\u2018", "'")
-                );
+                ImGui.TextWrapped(Util.StripWeirdCharacters(post.Text));
+                if (ImGui.IsItemClicked()) {
+                    var view = Gui.Value.SetView<Views.PostView>();
+                    view.SetPost(post);
+                }
             }
         }
 
@@ -134,12 +136,6 @@ public class Components {
                     break;
                 }
             }
-        }
-
-        ImGui.EndGroup();
-        if (ImGui.IsItemClicked()) {
-            var view = Gui.Value.SetView<Views.PostView>();
-            view.SetPost(post);
         }
 
         var newY = ImGui.GetCursorPosY();

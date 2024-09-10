@@ -16,4 +16,12 @@ public class Util {
         if (disabled) ImGui.EndDisabled();
         return clicked;
     }
+
+    public static string StripWeirdCharacters(string str) => str
+        // bad imgui escapes
+        .Replace("%", "%%")
+        // smart quotes
+        .Replace("\u201c", "\"")
+        .Replace("\u201d", "\"")
+        .Replace("\u2018", "'");
 }
