@@ -3,11 +3,12 @@ using FishyFlip.Models;
 
 namespace ImSky.Models;
 
+// ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
 public record Post {
     public readonly Ipfs.Cid PostId;
     public readonly ATUri PostUri;
 
-    public required User Author;
+    public readonly User? Author;
     public readonly string? Text;
     public required List<Embed> Embeds;
     public DateTime CreatedAt;
@@ -28,7 +29,7 @@ public record Post {
         this.PostId = post.Cid;
         this.PostUri = post.Uri;
 
-        this.Author = new User(post.Author);
+        this.Author = post.Author is not null ? new User(post.Author) : null;
         this.Text = post.Record?.Text;
         this.CreatedAt = post.Record?.CreatedAt ?? DateTime.Now;
 

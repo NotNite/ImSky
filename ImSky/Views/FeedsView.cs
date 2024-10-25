@@ -15,6 +15,8 @@ public class FeedsView(
     private bool fetchedFeeds;
 
     public override void Draw() {
+        if (Components.Hamburger()) return;
+        ImGui.SameLine();
         Components.MenuBar(() => {
             List<string> items = ["Following"];
             items.AddRange(feed.Feeds.Select(f => f.Title));
@@ -59,48 +61,11 @@ public class FeedsView(
             }
         }, goBack: false);
 
-        if (ImGui.BeginChild("##feeds", Vector2.Zero)) {
-            var visibleStart = ImGui.GetScrollY();
-            var visibleEnd = visibleStart + ImGui.GetWindowHeight();
-            //logger.LogDebug("visibleStart: {VisibleStart}, visibleEnd: {VisibleEnd}", visibleStart, visibleEnd);
-
-            foreach (var post in feed.Posts.ToList()) {
-                var y = ImGui.GetCursorPosY();
-                var totalHeight = post.UiState.TotalHeight;
-                var offScreen = totalHeight is not null && (y + totalHeight < visibleStart || y > visibleEnd);
-                //logger.LogDebug("y: {Y}, offScreen: {OffScreen}", y, offScreen);
-
-                if (post.ReplyRoot is not null) {
-                    Components.Post(post.ReplyRoot, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyRoot);
-                }
-                if (post.ReplyParent is not null && post.ReplyParent.PostId != post.ReplyRoot?.PostId) {
-                    Components.Post(post.ReplyParent, skipContent: offScreen);
-                    if (!offScreen) Components.PostInteraction(post.ReplyParent);
-                }
-
-                Components.Post(post, skipContent: offScreen);
-                if (!offScreen) Components.PostInteraction(post);
-
-                var newY = ImGui.GetCursorPosY();
-                var newHeight = newY - y;
-                if (offScreen) {
-                    ImGui.Dummy(new Vector2(0, totalHeight!.Value - newHeight));
-                } else {
-                    post.UiState.TotalHeight = newHeight;
-                }
-
-                ImGui.Separator();
-            }
-
-            ImGui.Dummy(new Vector2(0, ImGui.GetTextLineHeightWithSpacing() * 5));
-            if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY()) this.FetchPosts();
-
-            ImGui.EndChild();
-        }
+        Components.Posts(feed.Posts, this.FetchPosts);
     }
 
     public override void OnActivate() {
+        feed.Reset();
         this.FetchPosts();
     }
 

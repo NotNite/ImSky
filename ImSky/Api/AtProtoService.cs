@@ -21,27 +21,30 @@ public class AtProtoService(Config config, ILogger<AtProtoService> logger) {
     public async Task<Session> LoginWithSession(Session session) {
         logger.LogInformation("Attempting to login with session");
 
-        var refresh = await this.AtProtocol.Server.RefreshSessionAsync(session);
-        if (refresh.IsT0) {
-            logger.LogInformation("Logged in to {Handle} with session", session.Handle);
-            return refresh.AsT0;
+        var authSession = new AuthSession(session);
+        var refresh = await this.AtProtocol.AuthenticateWithPasswordSessionAsync(authSession);
+        if (refresh != null) {
+            logger.LogInformation("Logged in with session");
+            return refresh;
         }
 
-        var err = refresh.AsT1;
-        throw new Exception($"Failed to log in: {err.StatusCode} {err.Detail}");
+        throw new Exception("Failed to log in");
     }
 
     public async Task<Session> LoginWithPassword(string handle, string password) {
         if (handle.StartsWith('@')) handle = handle[1..];
         logger.LogInformation("Attempting to login with password");
 
-        var login = await this.AtProtocol.Server.CreateSessionAsync(handle, password);
-        if (login.IsT0) {
+        var login = await this.AtProtocol.AuthenticateWithPasswordAsync(handle, password);
+        if (login != null) {
             logger.LogInformation("Logged in to {Handle} with password", handle);
-            return login.AsT0;
+            return login;
         }
 
-        var err = login.AsT1;
-        throw new Exception($"Failed to log in: {err.StatusCode} {err.Detail}");
+        throw new Exception("Failed to log in");
+    }
+
+    public void LogOut() {
+        this.AtProtocol = BuildProtocol(config.Pds);
     }
 }

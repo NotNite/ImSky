@@ -15,6 +15,8 @@ public class Components {
     private static Lazy<GuiService> Gui => new(() => Program.Host.Services.GetRequiredService<GuiService>());
     private static Lazy<InteractionService> Interaction =>
         new(() => Program.Host.Services.GetRequiredService<InteractionService>());
+    private static Lazy<AtProtoService> AtProto =>
+        new(() => Program.Host.Services.GetRequiredService<AtProtoService>());
 
     public static void Post(
         Post post,
@@ -46,12 +48,18 @@ public class Components {
             }
 
             ImGui.BeginGroup();
-            var avatar = Gui.Value.GetTexture(post.Author.AvatarUrl);
-            avatar.Draw(new Vector2(size, size));
+            var avatarUrl = post.Author?.AvatarUrl;
+            var avatarSize = new Vector2(size, size);
+            if (avatarUrl is not null) {
+                var avatar = Gui.Value.GetTexture(avatarUrl);
+                avatar.Draw(avatarSize);
+            } else {
+                ImGui.Dummy(avatarSize);
+            }
             ImGui.SameLine();
 
             var posPrev = ImGui.GetCursorPos();
-            ImGui.TextUnformatted(post.Author.DisplayName ?? "@" + post.Author.Handle);
+            ImGui.TextUnformatted(post.Author?.DisplayName ?? "@" + post.Author?.Handle);
 
             var dateStr = Util.FormatRelative(DateTime.UtcNow - post.CreatedAt);
             var dateStrSize = ImGui.CalcTextSize(dateStr);
@@ -64,12 +72,12 @@ public class Components {
             ImGui.SetCursorPos(posNext);
 
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
-            ImGui.TextUnformatted("@" + post.Author.Handle);
+            ImGui.TextUnformatted("@" + post.Author?.Handle);
             ImGui.PopStyleColor();
             ImGui.EndGroup();
             if (ImGui.IsItemClicked()) {
                 var view = Gui.Value.SetView<Views.UserView>();
-                view.Handle = post.Author.Handle;
+                view.Handle = post.Author?.Handle;
                 view.Parent = Gui.Value.GetView();
             }
 
@@ -183,6 +191,39 @@ public class Components {
         }
     }
 
+    public static bool Hamburger() {
+        var ret = false;
+
+        if (ImGui.BeginPopup("##hamburger")) {
+            if (ImGui.MenuItem("Feeds")) {
+                Gui.Value.SetView<Views.FeedsView>();
+                ret = true;
+            }
+
+            if (ImGui.MenuItem("Profile")) {
+                if (AtProto.Value.AtProtocol.Session is not null) {
+                    var userView = Gui.Value.SetView<Views.UserView>();
+                    userView.Handle = AtProto.Value.AtProtocol.Session.Handle.Handle;
+                    ret = true;
+                }
+            }
+
+            if (ImGui.MenuItem("Logout")) {
+                AtProto.Value.LogOut();
+                Gui.Value.SetView<Views.LoginView>();
+                ret = true;
+            }
+
+            ImGui.EndPopup();
+        }
+
+        if (ImGui.Button("=")) {
+            ImGui.OpenPopup("##hamburger");
+        }
+
+        return ret;
+    }
+
     public static bool MenuBar(Action draw, bool goBack = true) {
         var ret = false;
         if (goBack) {
@@ -192,6 +233,49 @@ public class Components {
         draw();
         ImGui.Separator();
         return ret;
+    }
+
+    public static void Posts(
+        IEnumerable<Post> posts,
+        Action fetchPosts
+    ) {
+        if (ImGui.BeginChild("##feeds", Vector2.Zero)) {
+            var visibleStart = ImGui.GetScrollY();
+            var visibleEnd = visibleStart + ImGui.GetWindowHeight();
+
+            foreach (var post in posts) {
+                var y = ImGui.GetCursorPosY();
+                var totalHeight = post.UiState.TotalHeight;
+                var offScreen = totalHeight is not null && (y + totalHeight < visibleStart || y > visibleEnd);
+
+                if (post.ReplyRoot is not null) {
+                    Post(post.ReplyRoot, skipContent: offScreen);
+                    if (!offScreen) PostInteraction(post.ReplyRoot);
+                }
+                if (post.ReplyParent is not null && post.ReplyParent.PostId != post.ReplyRoot?.PostId) {
+                    Post(post.ReplyParent, skipContent: offScreen);
+                    if (!offScreen) PostInteraction(post.ReplyParent);
+                }
+
+                Post(post, skipContent: offScreen);
+                if (!offScreen) PostInteraction(post);
+
+                var newY = ImGui.GetCursorPosY();
+                var newHeight = newY - y;
+                if (offScreen) {
+                    ImGui.Dummy(new Vector2(0, totalHeight!.Value - newHeight));
+                } else {
+                    post.UiState.TotalHeight = newHeight;
+                }
+
+                ImGui.Separator();
+            }
+
+            ImGui.Dummy(new Vector2(0, ImGui.GetTextLineHeightWithSpacing() * 5));
+            if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY()) fetchPosts();
+
+            ImGui.EndChild();
+        }
     }
 
     public static void Replies(Post post) {

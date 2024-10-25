@@ -8,6 +8,8 @@ public class FeedService(AtProtoService atProto) {
     public const int PageSize = 20;
 
     public Feed? Feed;
+    public User? User;
+    public bool FetchLikes;
     public List<Feed> Feeds = new();
     public List<Models.Post> Posts = new();
 
@@ -29,10 +31,25 @@ public class FeedService(AtProtoService atProto) {
         }
     }
 
+    public void Reset() {
+        this.Feed = null;
+        this.User = null;
+        this.FetchLikes = false;
+        this.Feeds.Clear();
+        this.Posts.Clear();
+    }
+
     public async Task<string?> FetchPosts(string? cursor = null) {
         FeedViewPost[] feedView;
         string? newCursor;
-        if (this.Feed is null) {
+        if (this.User is not null) {
+            var identifier = ATIdentifier.Create(this.User.Handle)!;
+            var userFeed = this.FetchLikes
+                ? (await atProto.AtProtocol.Feed.GetActorLikesAsync(identifier, PageSize, cursor)).HandleResult()
+                : (await atProto.AtProtocol.Feed.GetAuthorFeedAsync(identifier, PageSize, cursor)).HandleResult();
+            feedView = userFeed.Feed;
+            newCursor = userFeed.Cursor;
+        } else if (this.Feed is null) {
             var timeline = (await atProto.AtProtocol.Feed.GetTimelineAsync(PageSize, cursor)).HandleResult();
             feedView = timeline.Feed;
             newCursor = timeline.Cursor;
