@@ -26,7 +26,7 @@ public class AtProtoService(Config config, ILogger<AtProtoService> logger) {
             var refresh = await this.AtProtocol.RefreshAuthSessionAsync()!;
             if (refresh != null) {
                 logger.LogInformation("Logged in with session");
-                return login;
+                return refresh.Session;
             }
         }
 

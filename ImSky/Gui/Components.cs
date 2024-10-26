@@ -43,7 +43,7 @@ public class Components {
             if (label is not null) {
                 ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
                 ImGui.SetNextItemWidth(width);
-                ImGui.TextUnformatted(label);
+                ImGui.TextUnformatted(Util.StripWeirdCharacters(label, true));
                 ImGui.PopStyleColor();
             }
 
@@ -59,7 +59,8 @@ public class Components {
             ImGui.SameLine();
 
             var posPrev = ImGui.GetCursorPos();
-            ImGui.TextUnformatted(post.Author?.DisplayName ?? "@" + post.Author?.Handle);
+            ImGui.TextUnformatted(
+                Util.StripWeirdCharacters(post.Author?.DisplayName ?? "@" + post.Author?.Handle, true));
 
             var dateStr = Util.FormatRelative(DateTime.UtcNow - post.CreatedAt);
             var dateStrSize = ImGui.CalcTextSize(dateStr);

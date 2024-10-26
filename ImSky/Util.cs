@@ -17,11 +17,17 @@ public class Util {
         return clicked;
     }
 
-    public static string StripWeirdCharacters(string str) => str
-        // bad imgui escapes
-        .Replace("%", "%%")
-        // smart quotes
-        .Replace("\u201c", "\"")
-        .Replace("\u201d", "\"")
-        .Replace("\u2018", "'");
+    public static string StripWeirdCharacters(string str, bool unformatted = false) {
+        if (unformatted) {
+            str = str
+                // bad imgui escapes
+                .Replace("%", "%%");
+        }
+
+        return str
+            // smart quotes
+            .Replace("\u201c", "\"")
+            .Replace("\u201d", "\"")
+            .Replace("\u2018", "'");
+    }
 }
