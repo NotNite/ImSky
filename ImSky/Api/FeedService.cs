@@ -82,7 +82,7 @@ public class FeedService(AtProtoService atProto) {
 
                 // Link the reply to the parent post
                 replyPost.ReplyParent = subpost;
-                replyPost.ReplyRoot = subpost.ReplyRoot ?? post;
+                replyPost.ReplyRoot = subpost.ReplyRoot ?? post.ReplyRoot ?? post;
 
                 if (reply.Replies is not null) ProcessReplies(replyPost, reply.Replies);
                 subpost.Replies.Add(replyPost);

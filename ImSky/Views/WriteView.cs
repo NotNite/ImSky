@@ -42,9 +42,7 @@ public class WriteView(
         }
 
         if (this.ReplyTo is not null) {
-            Components.IndentedPost(this.ReplyTo, () => {
-                Components.Post(this.ReplyTo);
-            });
+            Components.IndentedPost(this.ReplyTo, () => { Components.Post(this.ReplyTo); });
         }
 
         const ImGuiInputTextFlags flags = ImGuiInputTextFlags.EnterReturnsTrue;
@@ -54,18 +52,13 @@ public class WriteView(
         if (disabled) ImGui.BeginDisabled();
         if (ImGui.Button("Post")) {
             this.uploadTask = Task.Run(async () => {
-                try {
-                    var post = await interaction.Post(this.content, this.ReplyTo);
-                    feed.Posts.Insert(0, post);
-                    if (this.ReplyTo is not null) {
-                        this.ReplyTo.Replies.Add(post);
-                        this.ReplyTo.ReplyCount++;
-                    }
-                    this.Retreat();
-                } catch (Exception e) {
-                    ImGui.OpenPopup("Error");
-                    ImGui.TextUnformatted(e.Message);
+                var post = await interaction.Post(this.content, this.ReplyTo);
+                feed.Posts.Insert(0, post);
+                if (this.ReplyTo is not null) {
+                    this.ReplyTo.Replies.Add(post);
+                    this.ReplyTo.ReplyCount++;
                 }
+                this.Retreat();
             });
         }
         if (disabled) ImGui.EndDisabled();
