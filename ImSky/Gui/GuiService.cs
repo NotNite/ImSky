@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using ImGuiNET;
 using ImSky.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +14,7 @@ using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
 using Point = Veldrid.Point;
+
 #pragma warning disable CS0162 // Unreachable code detected
 
 namespace ImSky;
@@ -79,6 +82,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
             out this.window,
             out this.gd
         );
+        ApplyIcon(this.window);
 
         this.textureLayout = this.gd.ResourceFactory.CreateResourceLayout(
             new ResourceLayoutDescription(new ResourceLayoutElementDescription(
@@ -292,5 +296,38 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         texWrapper.Handle = binding;
 
         texWrapper.CreationData = null;
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void SetWindowIconDelegate(nint window, nint surface);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate nint CreateRgbSurfaceFromDelegate(
+        nint pixels, int width, int height, int depth, int pitch, uint rMask, uint gMask, uint bMask, uint aMask
+    );
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void FreeSurfaceDelegate(nint surface);
+
+    private static readonly SetWindowIconDelegate SetWindowIcon =
+        Sdl2Native.LoadFunction<SetWindowIconDelegate>("SDL_SetWindowIcon");
+    private static readonly CreateRgbSurfaceFromDelegate CreateRgbSurfaceFrom =
+        Sdl2Native.LoadFunction<CreateRgbSurfaceFromDelegate>("SDL_CreateRGBSurfaceFrom");
+    private static readonly FreeSurfaceDelegate FreeSurface =
+        Sdl2Native.LoadFunction<FreeSurfaceDelegate>("SDL_FreeSurface");
+
+    private static unsafe void ApplyIcon(Sdl2Window window) {
+        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ImSky.icon.png")!;
+        var image = Image.Load<Rgba32>(stream);
+        var data = new byte[image.Width * image.Height * 4];
+        image.CopyPixelDataTo(data);
+
+        fixed (byte* dataPtr = data) {
+            var surface = CreateRgbSurfaceFrom((nint) dataPtr, image.Width, image.Height, 32, image.Width * 4,
+                0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+            if (surface == nint.Zero) return;
+            SetWindowIcon(window.SdlWindowHandle, surface);
+            FreeSurface(surface);
+        }
     }
 }

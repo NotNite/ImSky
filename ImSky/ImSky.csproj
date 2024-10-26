@@ -7,7 +7,13 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DpiAwareness>PerMonitorV2</DpiAwareness>
+        <ApplicationIcon>../res/icon.ico</ApplicationIcon>
     </PropertyGroup>
+
+    <ItemGroup>
+        <Ignore Include="../res/icon.png"/>
+        <EmbeddedResource Include="../res/icon.png"/>
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
@@ -23,6 +29,6 @@
         <PackageReference Include="ImGui.NET" Version="1.90.9.1"/>
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5"/>
 
-        <PackageReference Include="FishyFlip" Version="2.0.0" />
+        <PackageReference Include="FishyFlip" Version="2.0.0"/>
     </ItemGroup>
 </Project>

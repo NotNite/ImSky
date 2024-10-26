@@ -86,6 +86,7 @@ public class Components {
                 ImGui.TextWrapped(Util.StripWeirdCharacters(post.Text));
                 if (ImGui.IsItemClicked()) {
                     var view = Gui.Value.SetView<Views.PostView>();
+                    view.Parent = Gui.Value.GetView();
                     view.SetPost(post);
                 }
             }
@@ -136,7 +137,7 @@ public class Components {
 
                     Post(postEmbed.Post, inChild: true, skipContent: skipContent);
 
-                    var childNewY = ImGui.GetCursorPosY();
+                    var childNewY = ImGui.GetCursorPosY() + style.ItemSpacing.Y;
                     var childNewHeight = childNewY - childY;
                     if (!skipContent) postEmbed.Post.UiState.ContentHeight = childNewHeight;
 
@@ -146,7 +147,7 @@ public class Components {
             }
         }
 
-        var newY = ImGui.GetCursorPosY();
+        var newY = ImGui.GetCursorPosY() + style.ItemSpacing.Y;
         var newHeight = newY - y;
         if (!skipContent) post.UiState.ContentHeight = newHeight;
     }
@@ -161,21 +162,6 @@ public class Components {
 
         ImGui.SameLine();
 
-        if (Util.DisabledButton($"Like ({post.LikeCount})###like_{post.PostId}",
-                post.UiState.LikeTask is not null || post.UiState.Liked)) {
-            post.UiState.LikeTask = Task.Run(async () => {
-                try {
-                    await Interaction.Value.Like(post);
-                } catch (Exception e) {
-                    Log.Error(e, "Failed to like post");
-                } finally {
-                    post.UiState.LikeTask = null;
-                }
-            });
-        }
-
-        ImGui.SameLine();
-
         // TODO: quote post
         if (Util.DisabledButton($"Repost ({post.RepostCount})###repost_{post.PostId}",
                 post.UiState.RepostTask is not null || post.UiState.Reposted)) {
@@ -186,6 +172,21 @@ public class Components {
                     Log.Error(e, "Failed to repost post");
                 } finally {
                     post.UiState.RepostTask = null;
+                }
+            });
+        }
+
+        ImGui.SameLine();
+
+        if (Util.DisabledButton($"Like ({post.LikeCount})###like_{post.PostId}",
+                post.UiState.LikeTask is not null || post.UiState.Liked)) {
+            post.UiState.LikeTask = Task.Run(async () => {
+                try {
+                    await Interaction.Value.Like(post);
+                } catch (Exception e) {
+                    Log.Error(e, "Failed to like post");
+                } finally {
+                    post.UiState.LikeTask = null;
                 }
             });
         }
@@ -204,6 +205,7 @@ public class Components {
                 if (AtProto.Value.AtProtocol.Session is not null) {
                     var userView = Gui.Value.SetView<Views.UserView>();
                     userView.Handle = AtProto.Value.AtProtocol.Session.Handle.Handle;
+                    userView.Parent = Gui.Value.GetView();
                     ret = true;
                 }
             }

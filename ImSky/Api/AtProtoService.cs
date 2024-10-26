@@ -21,11 +21,13 @@ public class AtProtoService(Config config, ILogger<AtProtoService> logger) {
     public async Task<Session> LoginWithSession(Session session) {
         logger.LogInformation("Attempting to login with session");
 
-        var authSession = new AuthSession(session);
-        var refresh = await this.AtProtocol.AuthenticateWithPasswordSessionAsync(authSession);
-        if (refresh != null) {
-            logger.LogInformation("Logged in with session");
-            return refresh;
+        var login = await this.AtProtocol.AuthenticateWithPasswordSessionAsync(new(session));
+        if (login != null) {
+            var refresh = await this.AtProtocol.RefreshAuthSessionAsync()!;
+            if (refresh != null) {
+                logger.LogInformation("Logged in with session");
+                return login;
+            }
         }
 
         throw new Exception("Failed to log in");
@@ -46,5 +48,6 @@ public class AtProtoService(Config config, ILogger<AtProtoService> logger) {
 
     public void LogOut() {
         this.AtProtocol = BuildProtocol(config.Pds);
+        config.Session = null;
     }
 }

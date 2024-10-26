@@ -16,10 +16,12 @@ public class UserView(
     public View? Parent;
 
     private User? user;
+    private bool handleLikes;
     private Task? lookupTask;
 
     private string? cursor;
     private Task? fetchingTask;
+    private bool bottom;
 
     private void Retreat() {
         if (this.Parent is not null) {
@@ -30,6 +32,8 @@ public class UserView(
     }
 
     public override void Draw() {
+        Components.Hamburger();
+        ImGui.SameLine();
         if (Components.MenuBar(() => ImGui.TextUnformatted("User"))) {
             this.Retreat();
             return;
@@ -73,17 +77,15 @@ public class UserView(
         ImGui.TextWrapped(Util.StripWeirdCharacters(this.user.Description ?? string.Empty));
 
         ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
-        ImGui.TextUnformatted($"{this.user.FollowersCount} followers, {this.user.FollowingCount} following, {this.user.PostCount} posts");
+        ImGui.TextUnformatted(
+            $"{this.user.FollowersCount} followers, {this.user.FollowingCount} following, {this.user.PostCount} posts");
         ImGui.PopStyleColor();
 
-        ImGui.Separator();
-
-        // TODO: Implement user posts
         if (ImGui.BeginTabBar("UserTabs")) {
             if (ImGui.BeginTabItem("Posts")) {
-                if (feed.FetchLikes) {
-                    feed.FetchLikes = false;
-                    feed.Posts.Clear();
+                if (this.handleLikes) {
+                    this.handleLikes = false;
+                    feed.Reset();
                     this.cursor = null;
                     this.FetchPosts();
                 }
@@ -93,9 +95,9 @@ public class UserView(
             }
 
             if (ImGui.BeginTabItem("Likes")) {
-                if (!feed.FetchLikes) {
-                    feed.FetchLikes = true;
-                    feed.Posts.Clear();
+                if (!this.handleLikes) {
+                    this.handleLikes = true;
+                    feed.Reset();
                     this.cursor = null;
                     this.FetchPosts();
                 }
@@ -109,25 +111,28 @@ public class UserView(
     }
 
     public override void OnActivate() {
+        this.handleLikes = false;
+        this.cursor = null;
+        this.bottom = false;
         feed.Reset();
         this.lookupTask = Task.Run(async () => {
             if (this.Handle is null) throw new Exception("Handle is null");
             this.user = await users.GetUserProfile(this.Handle);
-            feed.User = this.user;
-            this.FetchPosts();
         });
     }
 
     private void FetchPosts() {
         if (this.fetchingTask?.IsCompleted == false) return;
+        if (this.bottom) return;
 
         this.fetchingTask = Task.Run(async () => {
             logger.LogDebug("Fetching posts, cursor: {Cursor}", this.cursor);
 
             try {
-                this.cursor = await feed.FetchPosts(this.cursor);
+                this.cursor = await feed.FetchUser(this.user!, this.handleLikes, this.cursor);
                 logger.LogDebug("Fetched posts, got cursor: {Cursor}", this.cursor);
                 this.fetchingTask = null;
+                this.bottom = this.cursor is null;
             } catch (Exception e) {
                 logger.LogError(e, "Failed to get timeline");
             }

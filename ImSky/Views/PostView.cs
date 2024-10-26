@@ -11,6 +11,7 @@ public class PostView(
     ILogger<PostView> logger
 ) : View {
     private readonly List<Post> stack = new();
+    public View? Parent;
     public Post? CurrentPost => this.stack.Count > 0 ? this.stack[^1] : null;
     private Task? fetchingTask;
 
@@ -18,9 +19,17 @@ public class PostView(
         this.stack.Add(post);
     }
 
+    private void Retreat() {
+        if (this.Parent is not null) {
+            gui.SetView(this.Parent);
+        } else {
+            gui.SetView<FeedsView>();
+        }
+    }
+
     public override void OnActivate() {
         if (this.CurrentPost is null) {
-            gui.SetView<FeedsView>();
+            this.Retreat();
             return;
         }
 
@@ -37,9 +46,12 @@ public class PostView(
 
     public override void Draw() {
         if (this.CurrentPost is null) {
-            gui.SetView<FeedsView>();
+            this.Retreat();
             return;
         }
+
+        Components.Hamburger();
+        ImGui.SameLine();
         if (Components.MenuBar(() => ImGui.TextUnformatted("Post"))) {
             this.stack.RemoveAt(this.stack.Count - 1);
             return;

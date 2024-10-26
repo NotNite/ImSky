@@ -34,6 +34,8 @@ public class WriteView(
     }
 
     public override void Draw() {
+        Components.Hamburger();
+        ImGui.SameLine();
         if (Components.MenuBar(() => ImGui.TextUnformatted("Write"))) {
             this.Retreat();
             return;
