@@ -5,7 +5,7 @@ using Post = ImSky.Models.Post;
 
 namespace ImSky.Api;
 
-public class InteractionService(AtProtoService atProto) {
+public class InteractionService(AtProtoService atProto, Config config) {
     public async Task<Post> Post(string content, Post? replyTo = null) {
         var replyRef = replyTo is not null ? new ReplyRef(replyTo.PostId, replyTo.PostUri) : null;
         var rootRef = replyTo?.ReplyRoot is not null
@@ -19,7 +19,11 @@ public class InteractionService(AtProtoService atProto) {
         Log.Debug("Root ref: {RootRef}", rootRef);
         Log.Debug("Reply: {Reply}", reply);*/
 
-        var postData = (await atProto.AtProtocol.Repo.CreatePostAsync(content, reply)).HandleResult();
+        var postData = (await atProto.AtProtocol.Repo.CreatePostAsync(
+                            content,
+                            reply,
+                            langs: config.Language is not null ? [config.Language] : null
+                        )).HandleResult();
         if (postData.Uri is null) throw new Exception("Failed to create post");
 
         var fullPost = (await atProto.AtProtocol.Feed.GetPostThreadAsync(postData.Uri)).HandleResult();

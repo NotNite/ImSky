@@ -1,19 +1,13 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using ImSky.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using Veldrid;
-using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
-using Point = Veldrid.Point;
 
 #pragma warning disable CS0162 // Unreachable code detected
 
@@ -21,17 +15,12 @@ namespace ImSky;
 
 public class GuiService(Config config, ILogger<GuiService> logger) : IHostedService {
     public const bool ShowImGuiDebug = false;
-    private static readonly RgbaFloat BackgroundColor = new(0.1f, 0.1f, 0.1f, 1f);
 
     private Task task = null!;
     private CancellationTokenSource cts = null!;
     private readonly string iniPath = Path.Combine(Program.AppDir, "imgui.ini");
 
-    private Sdl2Window window = null!;
-    private GraphicsDevice gd = null!;
-    private ImGuiRenderer imgui = null!;
-    private CommandList cl = null!;
-    private ResourceLayout textureLayout = null!;
+    private Sdl sdl = null!;
 
     private readonly HttpClient client = new();
     private readonly Dictionary<string, Texture> textures = new();
@@ -39,6 +28,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
     private View? currentView;
     private View? queuedView;
     private string windowName = string.Empty;
+    private ImGuiWrapper imgui = null!;
 
     public Task StartAsync(CancellationToken cancellationToken) {
         this.cts = new CancellationTokenSource();
@@ -74,98 +64,42 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         }
     }
 
-    public void Run() {
-        VeldridStartup.CreateWindowAndGraphicsDevice(
-            new WindowCreateInfo(config.WindowX, config.WindowY, config.WindowWidth,
-                config.WindowHeight,
-                WindowState.Normal, "ImSky"),
-            out this.window,
-            out this.gd
-        );
-        ApplyIcon(this.window);
-
-        this.textureLayout = this.gd.ResourceFactory.CreateResourceLayout(
-            new ResourceLayoutDescription(new ResourceLayoutElementDescription(
-                "MainTexture", ResourceKind.TextureReadOnly, ShaderStages.Fragment
-            )));
-
-        this.imgui = new ImGuiRenderer(
-            this.gd,
-            this.gd.MainSwapchain.Framebuffer.OutputDescription,
-            this.window.Width, this.window.Height
-        );
-        var io = ImGui.GetIO();
-        unsafe {
-            io.NativePtr->IniFilename = null;
-            ImGui.LoadIniSettingsFromDisk(this.iniPath);
-        }
-        this.cl = this.gd.ResourceFactory.CreateCommandList();
-
-        this.gd.SyncToVerticalBlank = true;
-
-        this.window.Resized += this.Resized;
-        this.window.Moved += this.Moved;
+    public async Task Run() {
+        this.imgui = new ImGuiWrapper("ImSky", config.WindowPos, config.WindowSize, this.iniPath);
 
         var stopwatch = Stopwatch.StartNew();
-        while (this.window.Exists && !this.cts.Token.IsCancellationRequested) {
-            var deltaTime = stopwatch.ElapsedTicks / (float) Stopwatch.Frequency;
+        while (!this.imgui.Exiting && !this.cts.Token.IsCancellationRequested) {
             stopwatch.Restart();
 
-            var snapshot = this.window.PumpEvents();
-            if (!this.window.Exists) break;
+            this.imgui.DoEvents();
+            if (this.imgui.Exiting) break;
 
             lock (this.imgui) {
                 this.ProcessTextures();
-                this.imgui.Update(deltaTime, snapshot);
-                try {
-                    this.Draw();
-                } catch (Exception e) {
-                    logger.LogError(e, "Error in draw loop");
-                }
-
-                this.cl.Begin();
-                this.cl.SetFramebuffer(this.gd.MainSwapchain.Framebuffer);
-                this.cl.ClearColorTarget(0, BackgroundColor);
-
-                this.imgui.Render(this.gd, this.cl);
-                this.cl.End();
-                this.gd.SubmitCommands(this.cl);
-                this.gd.SwapBuffers(this.gd.MainSwapchain);
+                this.imgui.Render(() => {
+                    try {
+                        this.Draw();
+                    } catch (Exception e) {
+                        logger.LogError(e, "Error in draw loop");
+                    }
+                });
             }
         }
 
-        this.gd.WaitForIdle();
-
-        this.window.Resized -= this.Resized;
-        this.window.Moved -= this.Moved;
+        config.WindowPos = this.imgui.WindowPos;
+        config.WindowSize = this.imgui.WindowSize;
+        config.Save();
 
         ImGui.SaveIniSettingsToDisk(this.iniPath);
-
-        this.cl.Dispose();
         this.imgui.Dispose();
-        this.textureLayout.Dispose();
-        this.gd.Dispose();
-        this.window.Close();
-
-        Program.Host.StopAsync();
-    }
-
-    private void Moved(Point point) {
-        config.WindowX = point.X;
-        config.WindowY = point.Y;
-        config.Save();
-    }
-
-    private void Resized() {
-        this.gd.MainSwapchain.Resize((uint) this.window.Width, (uint) this.window.Height);
-        this.imgui.WindowResized(this.window.Width, this.window.Height);
-        config.WindowWidth = this.window.Width;
-        config.WindowHeight = this.window.Height;
-        config.Save();
+        _ = Task.Run(async () => await Program.Host.StopAsync());
     }
 
     private void Draw() {
-        if (this.currentView == null) this.SetView<LoginView>();
+        if (this.currentView == null) {
+            var loginView = this.SetView<LoginView>();
+            loginView.IsInitial = true;
+        }
         this.ProcessQueuedView();
 
         this.currentView!.PreDraw();
@@ -211,7 +145,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
                     //logger.LogDebug("Loaded texture from {Url}", url);
 
                     var img = Image.Load(data);
-                    var rgba = img.CloneAs<Bgra32>();
+                    var rgba = img.CloneAs<Rgba32>();
 
                     var bytes = new byte[rgba.Width * rgba.Height * 4];
                     rgba.CopyPixelDataTo(bytes);
@@ -231,7 +165,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         foreach (var (key, value) in this.textures) {
             if (value.LastUsed < cutoff) {
                 this.textures.Remove(key);
-                if (value.View is not null) this.imgui.RemoveImGuiBinding(value.View);
+                if (value.Handle is not null) this.imgui.DestroyTexture(value.Handle.Value);
                 value.Dispose();
             }
         }
@@ -244,90 +178,9 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
     }
 
     private void CreateTextureFromRgba(Texture texWrapper) {
-        var (data, width, height) = texWrapper.CreationData ?? throw new InvalidOperationException("No creation data");
-
-        var texture = this.gd.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
-            width,
-            height,
-            1,
-            1,
-            PixelFormat.R8_G8_B8_A8_UNorm,
-            TextureUsage.Sampled
-        ));
-
-        var global = Marshal.AllocHGlobal(data.Length);
-        for (var i = 0; i < data.Length; i += 4) {
-            var b = data[i];
-            var g = data[i + 1];
-            var r = data[i + 2];
-            var a = data[i + 3];
-
-            Marshal.WriteByte(global, i, r);
-            Marshal.WriteByte(global, i + 1, g);
-            Marshal.WriteByte(global, i + 2, b);
-            Marshal.WriteByte(global, i + 3, a);
-        }
-
-        this.gd.UpdateTexture(
-            texture,
-            global,
-            4 * width * height,
-            0,
-            0,
-            0,
-            width,
-            height,
-            1,
-            0,
-            0
-        );
-
-        var textureView = this.gd.ResourceFactory.CreateTextureView(texture);
-        var resourceSet = this.gd.ResourceFactory.CreateResourceSet(new ResourceSetDescription(
-            this.textureLayout,
-            textureView
-        ));
-
-        var binding = this.imgui.GetOrCreateImGuiBinding(this.gd.ResourceFactory, textureView);
-        texWrapper.View = textureView;
-        texWrapper.Set = resourceSet;
-        texWrapper.Global = global;
-        texWrapper.Size = new Vector2(width, height);
-        texWrapper.Handle = binding;
-
+        var (data, width, height) =
+            texWrapper.CreationData ?? throw new InvalidOperationException("No creation data");
+        texWrapper.Handle = this.imgui.CreateTexture(data, (int) width, (int) height);
         texWrapper.CreationData = null;
-    }
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void SetWindowIconDelegate(nint window, nint surface);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate nint CreateRgbSurfaceFromDelegate(
-        nint pixels, int width, int height, int depth, int pitch, uint rMask, uint gMask, uint bMask, uint aMask
-    );
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void FreeSurfaceDelegate(nint surface);
-
-    private static readonly SetWindowIconDelegate SetWindowIcon =
-        Sdl2Native.LoadFunction<SetWindowIconDelegate>("SDL_SetWindowIcon");
-    private static readonly CreateRgbSurfaceFromDelegate CreateRgbSurfaceFrom =
-        Sdl2Native.LoadFunction<CreateRgbSurfaceFromDelegate>("SDL_CreateRGBSurfaceFrom");
-    private static readonly FreeSurfaceDelegate FreeSurface =
-        Sdl2Native.LoadFunction<FreeSurfaceDelegate>("SDL_FreeSurface");
-
-    private static unsafe void ApplyIcon(Sdl2Window window) {
-        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ImSky.icon.png")!;
-        var image = Image.Load<Rgba32>(stream);
-        var data = new byte[image.Width * image.Height * 4];
-        image.CopyPixelDataTo(data);
-
-        fixed (byte* dataPtr = data) {
-            var surface = CreateRgbSurfaceFrom((nint) dataPtr, image.Width, image.Height, 32, image.Width * 4,
-                0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-            if (surface == nint.Zero) return;
-            SetWindowIcon(window.SdlWindowHandle, surface);
-            FreeSurface(surface);
-        }
     }
 }

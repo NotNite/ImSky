@@ -23,10 +23,14 @@
         <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0"/>
         <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0"/>
 
-        <!-- No idea who owns this package but it's the only updated one I could find -->
-        <PackageReference Include="opticfluorine.Veldrid.StartupUtilities" Version="4.9.4"/>
-        <PackageReference Include="opticfluorine.Veldrid.ImGui" Version="5.89.2-ge6c2ae5ee1"/>
-        <PackageReference Include="ImGui.NET" Version="1.90.9.1"/>
+        <PackageReference Include="Hexa.NET.ImGui" Version="2.1.10"/>
+        <PackageReference Include="Hexa.NET.Utilities" Version="2.1.8"/>
+        <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.5"/>
+        <PackageReference Include="Hexa.NET.ImGui.Backends.SDL2" Version="1.0.5"/>
+        <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.5"/>
+        <PackageReference Include="Hexa.NET.OpenGL3" Version="1.0.1"/>
+        <PackageReference Include="Silk.NET.SDL" Version="2.21.0"/>
+
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5"/>
 
         <PackageReference Include="FishyFlip" Version="2.0.0"/>

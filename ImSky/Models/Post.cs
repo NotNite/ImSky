@@ -87,6 +87,7 @@ public record PostUiState {
     public Task? LikeTask;
     public Task? RepostTask;
     public Task? ReplyTask;
+    public Task? OpenTask;
 
     public bool IsReplying;
     public string ReplyText = string.Empty;

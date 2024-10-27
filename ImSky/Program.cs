@@ -41,11 +41,12 @@ public class Program {
         builder.Services.AddSingleton<InteractionService>();
         builder.Services.AddSingleton<UsersService>();
 
-        builder.Services.AddTransient<LoginView>();
         builder.Services.AddTransient<FeedsView>();
+        builder.Services.AddTransient<LoginView>();
         builder.Services.AddTransient<PostView>();
-        builder.Services.AddTransient<WriteView>();
+        builder.Services.AddTransient<SettingsView>();
         builder.Services.AddTransient<UserView>();
+        builder.Services.AddTransient<WriteView>();
 
         Host = builder.Build();
         Host.Start();

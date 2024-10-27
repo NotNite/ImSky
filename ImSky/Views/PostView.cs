@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Hexa.NET.ImGui;
 using ImSky.Api;
 using ImSky.Models;
 using Microsoft.Extensions.Logging;
@@ -10,13 +10,12 @@ public class PostView(
     FeedService feed,
     ILogger<PostView> logger
 ) : View {
-    private readonly List<Post> stack = new();
     public View? Parent;
-    public Post? CurrentPost => this.stack.Count > 0 ? this.stack[^1] : null;
+    public Post? CurrentPost;
     private Task? fetchingTask;
 
     public void SetPost(Post post) {
-        this.stack.Add(post);
+        this.CurrentPost = post;
     }
 
     private void Retreat() {
@@ -53,7 +52,7 @@ public class PostView(
         Components.Hamburger();
         ImGui.SameLine();
         if (Components.MenuBar(() => ImGui.TextUnformatted("Post"))) {
-            this.stack.RemoveAt(this.stack.Count - 1);
+            this.Retreat();
             return;
         }
 

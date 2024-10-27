@@ -18,6 +18,7 @@ public class FeedService(AtProtoService atProto) {
             if (pref is SavedFeedsPref {Saved: not null} savedFeeds) ids.AddRange(savedFeeds.Saved);
         }
 
+        if (ids.Count == 0) return [];
         var feeds = (await atProto.AtProtocol.Feed.GetFeedGeneratorsAsync(ids)).HandleResult();
         return feeds is null ? [] : feeds.Feeds.Select(f => new Feed(f)).ToList();
     }
@@ -47,6 +48,23 @@ public class FeedService(AtProtoService atProto) {
             this.ProcessFeedView(timeline.Feed);
             return timeline.Cursor;
         }
+    }
+
+    public Models.Post? GetPost(string postId) => this.Posts.FirstOrDefault(p => p.PostId.ToString() == postId);
+
+    public async Task LookupReplyRef(Models.Post post) {
+        return;
+        var thread = (await atProto.AtProtocol.Feed.GetPostThreadAsync(post.PostUri)).HandleResult();
+        // FIXME!!!
+        var replyRoot = thread.Thread.Post;
+        var replyParent = thread.Thread.Post;
+
+        if (replyRoot is not null)
+            post.ReplyRoot = this.GetPost(replyRoot.Cid.ToString()) ?? new Models.Post(replyRoot);
+        if (replyParent is not null)
+            post.ReplyParent = this.GetPost(replyParent.Cid.ToString()) ?? new Models.Post(replyParent);
+
+        post.ReplyParent ??= post.ReplyRoot;
     }
 
     private void ProcessFeedView(FeedViewPost[] feedView) {

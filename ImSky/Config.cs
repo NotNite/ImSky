@@ -1,36 +1,43 @@
-﻿using System.Text.Json;
+﻿using System.Numerics;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using FishyFlip.Models;
 using Serilog;
 
 namespace ImSky;
 
 public class Config : IDisposable {
+    public const string DefaultPds = "https://bsky.social";
+    public const string DefaultLanguage = "en";
+
     [JsonIgnore]
     public static string ConfigPath => Path.Combine(
         Program.AppDir,
         "config.json"
     );
 
+    [JsonIgnore]
+    private static JsonSerializerOptions SerializerOptions => new() {
+        WriteIndented = true,
+        IncludeFields = true
+    };
+
     // UI
-    [JsonInclude] public int WindowX = 100;
-    [JsonInclude] public int WindowY = 100;
-    [JsonInclude] public int WindowWidth = 540;
-    [JsonInclude] public int WindowHeight = 960;
+    public Vector2 WindowPos = new(100, 100);
+    public Vector2 WindowSize = new(540, 960);
 
     // Login
-    [JsonInclude] public string Pds = "https://bsky.social";
-    [JsonInclude] public string? Handle;
-    [JsonInclude] public bool AutoLogin = true;
-    [JsonInclude] public Session? Session;
-    [JsonInclude] public bool SaveSession;
+    public string Pds = DefaultPds;
+    public string? Handle;
+    public string? Password;
+    public string? Language = DefaultLanguage;
+    public bool AutoLogin = true;
 
     public static Config Load() {
         Config config;
 
         try {
-            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath))!;
+            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), SerializerOptions)!;
         } catch (Exception e) {
             Log.Warning(e, "Failed to load config file - creating a new one");
             config = new Config();
@@ -43,15 +50,11 @@ public class Config : IDisposable {
     }
 
     public void Fixup() {
-        if (this.Session is not null && !this.SaveSession) {
-            this.Session = null;
-        }
+        // TODO
     }
 
     public void Save() {
-        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, new JsonSerializerOptions {
-            WriteIndented = true
-        }));
+        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, SerializerOptions));
     }
 
     public void Dispose() {

@@ -1,10 +1,9 @@
 ﻿using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using ImSky.Api;
 using ImSky.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 using ImageEmbed = ImSky.Models.ImageEmbed;
 using Post = ImSky.Models.Post;
 
@@ -12,11 +11,13 @@ namespace ImSky;
 
 public class Components {
     // This sucks lol
-    private static Lazy<GuiService> Gui => new(() => Program.Host.Services.GetRequiredService<GuiService>());
-    private static Lazy<InteractionService> Interaction =>
-        new(() => Program.Host.Services.GetRequiredService<InteractionService>());
     private static Lazy<AtProtoService> AtProto =>
         new(() => Program.Host.Services.GetRequiredService<AtProtoService>());
+    private static Lazy<FeedService> Feed =>
+        new(() => Program.Host.Services.GetRequiredService<FeedService>());
+    private static Lazy<InteractionService> Interaction =>
+        new(() => Program.Host.Services.GetRequiredService<InteractionService>());
+    private static Lazy<GuiService> Gui => new(() => Program.Host.Services.GetRequiredService<GuiService>());
 
     public static void Post(
         Post post,
@@ -84,11 +85,29 @@ public class Components {
 
             if (post.Text is not null) {
                 ImGui.SetNextItemWidth(width);
+                var disabled = post.UiState.OpenTask is not null;
+                if (disabled) ImGui.PushStyleColor(ImGuiCol.Text, Colors.Grey);
                 ImGui.TextWrapped(Util.StripWeirdCharacters(post.Text));
-                if (ImGui.IsItemClicked()) {
-                    var view = Gui.Value.SetView<Views.PostView>();
-                    view.Parent = Gui.Value.GetView();
-                    view.SetPost(post);
+                if (disabled) ImGui.PopStyleColor();
+                if (ImGui.IsItemClicked() && post.UiState.OpenTask is null) {
+                    post.UiState.OpenTask = Task.Run(async () => {
+                        try {
+                            try {
+                                await Feed.Value.LookupReplyRef(post);
+                            } catch (Exception e) {
+                                Log.Error(e, "Failed to lookup reply ref");
+                            }
+
+                            var view = Gui.Value.SetView<Views.PostView>();
+                            view.Parent = Gui.Value.GetView();
+                            Log.Information("Opening post {PostId}", post.PostId);
+                            view.SetPost(post);
+                        } catch (Exception e) {
+                            Log.Error(e, "Failed to open post");
+                        } finally {
+                            post.UiState.OpenTask = null;
+                        }
+                    });
                 }
             }
         }
@@ -127,7 +146,7 @@ public class Components {
                 case PostEmbed postEmbed: {
                     if (inChild) break;
 
-                    const ImGuiChildFlags childFlags = ImGuiChildFlags.Border;
+                    const ImGuiChildFlags childFlags = ImGuiChildFlags.Borders;
                     var childSize = postEmbed.Post.UiState.ContentHeight is { } contentHeight
                                         ? cra with {Y = contentHeight + (style.WindowPadding.Y * 2)}
                                         : Vector2.Zero;
@@ -156,9 +175,23 @@ public class Components {
     public static void PostInteraction(Post post) {
         if (Util.DisabledButton($"Reply ({post.ReplyCount})###reply_{post.PostId}",
                 post.UiState.ReplyTask is not null)) {
-            var view = Gui.Value.SetView<Views.WriteView>();
-            view.Parent = Gui.Value.GetView();
-            view.ReplyTo = post;
+            post.UiState.ReplyTask = Task.Run(async () => {
+                try {
+                    try {
+                        await Feed.Value.LookupReplyRef(post);
+                    } catch (Exception e) {
+                        Log.Error(e, "Failed to lookup reply ref");
+                    }
+
+                    var view = Gui.Value.SetView<Views.WriteView>();
+                    view.Parent = Gui.Value.GetView();
+                    view.ReplyTo = post;
+                } catch (Exception e) {
+                    Log.Error(e, "Failed to reply to post");
+                } finally {
+                    post.UiState.ReplyTask = null;
+                }
+            });
         }
 
         ImGui.SameLine();
@@ -209,6 +242,11 @@ public class Components {
                     userView.Parent = Gui.Value.GetView();
                     ret = true;
                 }
+            }
+
+            if (ImGui.MenuItem("Settings")) {
+                Gui.Value.SetView<Views.SettingsView>();
+                ret = true;
             }
 
             if (ImGui.MenuItem("Logout")) {
@@ -276,9 +314,8 @@ public class Components {
 
             ImGui.Dummy(new Vector2(0, ImGui.GetTextLineHeightWithSpacing() * 5));
             if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY()) fetchPosts();
-
-            ImGui.EndChild();
         }
+        ImGui.EndChild();
     }
 
     public static void Replies(Post post) {
@@ -306,7 +343,7 @@ public class Components {
         action();
 
         var newY = ImGui.GetCursorPosY();
-        var newHeight = newY - y;
+        var newHeight = newY - y + ImGui.GetStyle().ItemSpacing.Y;
         post.UiState.IndentHeight = newHeight;
 
         ImGui.EndChild();
