@@ -45,8 +45,7 @@ public class WriteView(
             Components.IndentedPost(this.ReplyTo, () => { Components.Post(this.ReplyTo); });
         }
 
-        const ImGuiInputTextFlags flags = ImGuiInputTextFlags.EnterReturnsTrue;
-        ImGui.InputTextMultiline("##write_content", ref this.content, 1024, Vector2.Zero, flags);
+        ImGui.InputTextMultiline("##write_content", ref this.content, 1024, Vector2.Zero);
 
         var disabled = this.uploadTask?.IsCompleted == false || this.OverLimit;
         if (disabled) ImGui.BeginDisabled();

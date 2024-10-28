@@ -100,7 +100,7 @@ public class Components {
 
                             var view = Gui.Value.SetView<Views.PostView>();
                             view.Parent = Gui.Value.GetView();
-                            Log.Information("Opening post {PostId}", post.PostId);
+                            Log.Debug("Opening post {PostId}", post.PostId);
                             view.SetPost(post);
                         } catch (Exception e) {
                             Log.Error(e, "Failed to open post");

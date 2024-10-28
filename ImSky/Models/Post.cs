@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using FishyFlip.Models;
+using Serilog;
 
 namespace ImSky.Models;
 
@@ -68,8 +69,12 @@ public record Post {
 
     [SetsRequiredMembers]
     public Post(FeedViewPost feedView) : this(feedView.Post) {
-        if (feedView.Reply?.Parent is not null) this.ReplyParent = new Post(feedView.Reply.Parent);
         if (feedView.Reply?.Root is not null) this.ReplyRoot = new Post(feedView.Reply.Root);
+        if (feedView.Reply?.Parent is not null) {
+            this.ReplyParent = new Post(feedView.Reply.Parent) {
+                ReplyRoot = this.ReplyRoot
+            };
+        }
         if (feedView.Reason is {Type: "app.bsky.feed.defs#reasonRepost", By: not null}) {
             this.RepostedBy = new User(feedView.Reason.By);
         }

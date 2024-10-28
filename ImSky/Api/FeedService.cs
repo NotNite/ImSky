@@ -1,6 +1,7 @@
 ﻿using FishyFlip.Models;
 using FishyFlip.Tools;
 using ImSky.Models;
+using Serilog;
 
 namespace ImSky.Api;
 
@@ -53,18 +54,17 @@ public class FeedService(AtProtoService atProto) {
     public Models.Post? GetPost(string postId) => this.Posts.FirstOrDefault(p => p.PostId.ToString() == postId);
 
     public async Task LookupReplyRef(Models.Post post) {
-        return;
         var thread = (await atProto.AtProtocol.Feed.GetPostThreadAsync(post.PostUri)).HandleResult();
-        // FIXME!!!
-        var replyRoot = thread.Thread.Post;
-        var replyParent = thread.Thread.Post;
+        var replyParent = thread.Thread.Parent;
 
-        if (replyRoot is not null)
-            post.ReplyRoot = this.GetPost(replyRoot.Cid.ToString()) ?? new Models.Post(replyRoot);
-        if (replyParent is not null)
-            post.ReplyParent = this.GetPost(replyParent.Cid.ToString()) ?? new Models.Post(replyParent);
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (replyParent?.Post != null) {
+            post.ReplyParent = this.GetPost(replyParent.Post.Cid.ToString()) ?? new Models.Post(replyParent.Post);
+            Log.Debug("LookupReplyRef Parent: {PostId} -> {ReplyParentId}", post.PostId, post.ReplyParent.PostId);
+        }
 
-        post.ReplyParent ??= post.ReplyRoot;
+        post.ReplyRoot ??= post.ReplyParent?.ReplyRoot ?? post.ReplyParent;
+        Log.Debug("LookupReplyRef Root: {PostId} -> {ReplyParentId}", post.PostId, post.ReplyRoot?.PostId);
     }
 
     private void ProcessFeedView(FeedViewPost[] feedView) {
