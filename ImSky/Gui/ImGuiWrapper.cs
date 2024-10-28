@@ -70,7 +70,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         }
 
         this.glContext = this.sdl.GLCreateContext(this.window);
-        GL.InitApi(new SdlNativeContext(this.sdl, this.glContext));
+        GL.InitApi(new SdlNativeContext(this.sdl));
 
         this.imguiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(this.imguiContext);
@@ -180,7 +180,7 @@ public unsafe class ImGuiWrapper : IDisposable {
         GL.DeleteTexture((uint) texture);
     }
 
-    public class SdlNativeContext(Sdl sdl, void* context) : INativeContext {
+    public class SdlNativeContext(Sdl sdl) : INativeContext {
         public nint GetProcAddress(string procName) {
             return (nint) sdl.GLGetProcAddress(procName);
         }

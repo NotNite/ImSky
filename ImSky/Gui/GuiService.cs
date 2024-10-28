@@ -20,8 +20,6 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
     private CancellationTokenSource cts = null!;
     private readonly string iniPath = Path.Combine(Program.AppDir, "imgui.ini");
 
-    private Sdl sdl = null!;
-
     private readonly HttpClient client = new();
     private readonly Dictionary<string, Texture> textures = new();
 
@@ -64,7 +62,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         }
     }
 
-    public async Task Run() {
+    public void Run() {
         this.imgui = new ImGuiWrapper("ImSky", config.WindowPos, config.WindowSize, this.iniPath);
 
         var stopwatch = Stopwatch.StartNew();
@@ -181,6 +179,7 @@ public class GuiService(Config config, ILogger<GuiService> logger) : IHostedServ
         var (data, width, height) =
             texWrapper.CreationData ?? throw new InvalidOperationException("No creation data");
         texWrapper.Handle = this.imgui.CreateTexture(data, (int) width, (int) height);
+        texWrapper.Size = new Vector2(width, height);
         texWrapper.CreationData = null;
     }
 }
